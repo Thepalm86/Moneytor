@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { savingGoalOperations } from '@/lib/supabase-helpers';
+import { AchievementEngine } from '@/lib/achievement-engine';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { GoalForm } from '@/components/goals/goal-form';
@@ -105,7 +106,18 @@ export function GoalsTab() {
     
     try {
       setError(null);
-      await savingGoalOperations.toggleAchieved(goalId, user.id, currentStatus);
+      const updatedGoal = await savingGoalOperations.toggleAchieved(goalId, user.id, currentStatus);
+      
+      // If goal is being marked as achieved, trigger achievement check
+      if (!currentStatus && updatedGoal) {
+        try {
+          await AchievementEngine.onGoalCompleted(user.id, updatedGoal);
+        } catch (achievementError) {
+          console.error('Achievement trigger failed:', achievementError);
+          // Don't fail the goal update if achievement check fails
+        }
+      }
+      
       loadGoals();
     } catch (error) {
       console.error('Error toggling achievement status:', error);

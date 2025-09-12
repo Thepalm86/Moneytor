@@ -1806,6 +1806,308 @@ export const analyticsOperations = {
   }
 }
 
+// Achievement Operations
+type AchievementRow = Tables['achievements']['Row']
+type UserAchievementRow = Tables['user_achievements']['Row']
+type UserAchievementInsert = Tables['user_achievements']['Insert']
+type UserAchievementUpdate = Tables['user_achievements']['Update']
+
+export const achievementOperations = {
+  /**
+   * Fetch all achievements with user progress
+   */
+  async fetchAll(userId: string) {
+    const { data, error } = await typedSupabase
+      .from('achievements')
+      .select(`
+        *,
+        user_achievements!user_achievements_achievement_id_fkey(
+          id,
+          earned_at,
+          progress
+        )
+      `)
+      .eq('is_active', true)
+      .eq('user_achievements.user_id', userId)
+      .order('points', { ascending: true })
+
+    if (error) throw error
+
+    // Transform data to include user progress
+    return (data || []).map((achievement: any) => {
+      const userAchievement = achievement.user_achievements?.[0]
+      return {
+        ...achievement,
+        isEarned: !!userAchievement?.earned_at,
+        earnedAt: userAchievement?.earned_at || null,
+        progress: userAchievement?.progress || null,
+        userAchievementId: userAchievement?.id || null
+      }
+    })
+  },
+
+  /**
+   * Fetch user's earned achievements
+   */
+  async fetchEarned(userId: string) {
+    const { data, error } = await typedSupabase
+      .from('user_achievements')
+      .select(`
+        *,
+        achievements(*)
+      `)
+      .eq('user_id', userId)
+      .not('earned_at', 'is', null)
+      .order('earned_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  },
+
+  /**
+   * Fetch achievement statistics for user
+   */
+  async fetchStats(userId: string) {
+    const { data: allAchievements, error: achievementsError } = await typedSupabase
+      .from('achievements')
+      .select('id, points, category')
+      .eq('is_active', true)
+
+    if (achievementsError) throw achievementsError
+
+    const { data: userAchievements, error: userError } = await typedSupabase
+      .from('user_achievements')
+      .select(`
+        *,
+        achievements(points, category)
+      `)
+      .eq('user_id', userId)
+      .not('earned_at', 'is', null)
+
+    if (userError) throw userError
+
+    const totalAchievements = allAchievements?.length || 0
+    const earnedAchievements = userAchievements?.length || 0
+    const totalPoints = (userAchievements || []).reduce((sum: number, ua: any) => 
+      sum + (ua.achievements?.points || 0), 0)
+
+    // Category breakdown
+    const categoryBreakdown = {
+      saving: 0,
+      spending: 0,
+      budgeting: 0,
+      consistency: 0
+    }
+
+    ;(userAchievements || []).forEach((ua: any) => {
+      const category = ua.achievements?.category
+      if (category && categoryBreakdown.hasOwnProperty(category)) {
+        categoryBreakdown[category as keyof typeof categoryBreakdown]++
+      }
+    })
+
+    return {
+      totalAchievements,
+      earnedAchievements,
+      totalPoints,
+      completionRate: totalAchievements > 0 ? (earnedAchievements / totalAchievements) * 100 : 0,
+      categoryBreakdown
+    }
+  },
+
+  /**
+   * Check if user meets achievement criteria
+   */
+  async checkEligibility(userId: string, achievementId: string) {
+    // Get achievement criteria
+    const { data: achievement, error: achievementError } = await typedSupabase
+      .from('achievements')
+      .select('criteria, category')
+      .eq('id', achievementId)
+      .eq('is_active', true)
+      .single()
+
+    if (achievementError || !achievement) return false
+
+    // Check if already earned
+    const { data: existing, error: existingError } = await typedSupabase
+      .from('user_achievements')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('achievement_id', achievementId)
+      .not('earned_at', 'is', null)
+      .limit(1)
+
+    if (existingError) return false
+    if (existing && existing.length > 0) return false
+
+    const criteria = achievement.criteria as any
+
+    // Get user data based on achievement category
+    switch (achievement.category) {
+      case 'saving':
+        return await this.checkSavingCriteria(userId, criteria)
+      case 'spending':
+        return await this.checkSpendingCriteria(userId, criteria)
+      case 'budgeting':
+        return await this.checkBudgetingCriteria(userId, criteria)
+      case 'consistency':
+        return await this.checkConsistencyCriteria(userId, criteria)
+      default:
+        return false
+    }
+  },
+
+  /**
+   * Check saving-related achievement criteria
+   */
+  async checkSavingCriteria(userId: string, criteria: any) {
+    if (criteria.type === 'total_saved') {
+      const { data, error } = await typedSupabase
+        .from('saving_goals')
+        .select('current_amount')
+        .eq('user_id', userId)
+
+      if (error) return false
+
+      const totalSaved = (data || []).reduce((sum: number, goal: any) => sum + goal.current_amount, 0)
+      return totalSaved >= criteria.target
+    }
+
+    if (criteria.type === 'goals_completed') {
+      const { data, error } = await typedSupabase
+        .from('saving_goals')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'achieved')
+
+      if (error) return false
+      return (data?.length || 0) >= criteria.count
+    }
+
+    return false
+  },
+
+  /**
+   * Check spending-related achievement criteria
+   */
+  async checkSpendingCriteria(userId: string, criteria: any) {
+    if (criteria.type === 'transaction_count') {
+      const { data, error } = await typedSupabase
+        .from('transactions')
+        .select('id')
+        .eq('user_id', userId)
+
+      if (error) return false
+      return (data?.length || 0) >= criteria.count
+    }
+
+    if (criteria.type === 'category_spending') {
+      const { data, error } = await typedSupabase
+        .from('transactions')
+        .select('amount')
+        .eq('user_id', userId)
+        .eq('category_id', criteria.categoryId)
+        .eq('type', 'expense')
+
+      if (error) return false
+
+      const totalSpent = (data || []).reduce((sum: number, t: any) => sum + t.amount, 0)
+      return totalSpent <= criteria.maxAmount
+    }
+
+    return false
+  },
+
+  /**
+   * Check budgeting-related achievement criteria
+   */
+  async checkBudgetingCriteria(userId: string, criteria: any) {
+    if (criteria.type === 'targets_met') {
+      const stats = await targetOperations.fetchStats(userId)
+      return stats.on_track_targets >= criteria.count
+    }
+
+    if (criteria.type === 'budget_adherence') {
+      const stats = await targetOperations.fetchStats(userId)
+      const adherenceRate = stats.total_budget > 0 ? 
+        ((stats.total_budget - stats.total_spent) / stats.total_budget) * 100 : 0
+      return adherenceRate >= criteria.percentage
+    }
+
+    return false
+  },
+
+  /**
+   * Check consistency-related achievement criteria
+   */
+  async checkConsistencyCriteria(userId: string, criteria: any) {
+    if (criteria.type === 'daily_transactions') {
+      const endDate = new Date()
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - criteria.days)
+
+      const { data, error } = await typedSupabase
+        .from('transactions')
+        .select('date')
+        .eq('user_id', userId)
+        .gte('date', startDate.toISOString().split('T')[0])
+        .lte('date', endDate.toISOString().split('T')[0])
+
+      if (error) return false
+
+      // Count unique days with transactions
+      const uniqueDays = new Set((data || []).map((t: any) => t.date)).size
+      return uniqueDays >= criteria.days
+    }
+
+    return false
+  },
+
+  /**
+   * Award achievement to user
+   */
+  async award(userId: string, achievementId: string, progress?: any) {
+    const achievementData: UserAchievementInsert = {
+      user_id: userId,
+      achievement_id: achievementId,
+      earned_at: new Date().toISOString(),
+      progress: progress || null
+    }
+
+    const { data, error } = await typedSupabase
+      .from('user_achievements')
+      .insert(achievementData)
+      .select(`
+        *,
+        achievements(*)
+      `)
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  /**
+   * Update achievement progress (for partial achievements)
+   */
+  async updateProgress(userId: string, achievementId: string, progress: any) {
+    const { data, error } = await typedSupabase
+      .from('user_achievements')
+      .upsert({
+        user_id: userId,
+        achievement_id: achievementId,
+        progress: progress,
+        earned_at: null
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+}
+
 /**
  * Type guard to check if a value is a valid UUID
  */

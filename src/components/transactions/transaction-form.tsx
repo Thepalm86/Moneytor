@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { transactionOperations, categoryOperations, handleSupabaseError } from '@/lib/supabase-helpers';
+import { AchievementEngine } from '@/lib/achievement-engine';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -158,7 +159,17 @@ export function TransactionForm({ transaction, onClose, onSuccess }: Transaction
       if (transaction) {
         await transactionOperations.update(transaction.id, user.id, transactionData);
       } else {
-        await transactionOperations.create(transactionData);
+        const newTransaction = await transactionOperations.create(transactionData);
+        // Trigger achievement check for new transactions
+        try {
+          await AchievementEngine.onTransactionCreated(user.id, {
+            ...transactionData,
+            ...newTransaction
+          });
+        } catch (achievementError) {
+          console.error('Achievement trigger failed:', achievementError);
+          // Don't fail the transaction creation if achievement check fails
+        }
       }
 
       onSuccess();
