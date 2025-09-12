@@ -148,16 +148,7 @@ export function CategoriesTab() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Categories
-            </h2>
-            <p className="text-slate-600 mt-1">Organize your transactions with custom categories</p>
-          </div>
-        </div>
-        
+      <div className="space-y-6">        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i} className="p-6">
@@ -177,18 +168,12 @@ export function CategoriesTab() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Categories
-          </h2>
-          <p className="text-slate-600 mt-1">Organize your transactions with custom categories</p>
-        </div>
+    <div className="space-y-4">
+      {/* Action Bar */}
+      <div className="flex justify-end mb-4">
         <Button 
           onClick={() => setShowForm(true)} 
-          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+          className="bg-gradient-primary hover:opacity-90 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover-lift"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Category

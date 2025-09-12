@@ -29,25 +29,28 @@ interface QuickActionProps {
 const QuickAction = ({ title, description, href, icon: Icon, color }: QuickActionProps) => {
   return (
     <Link href={href} className="block">
-      <Card className={`
-        p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group
-        bg-white/60 backdrop-blur-sm hover:scale-[1.02] ${color.hover}
-      `}>
-        <div className="flex items-center gap-4">
-          <div className={`h-12 w-12 rounded-xl ${color.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-            <Icon className={`h-6 w-6 ${color.icon}`} />
+      <Card 
+        variant="interactive" 
+        className="p-5 group relative overflow-hidden animate-in"
+      >
+        {/* Subtle gradient overlay */}
+        <div className={`absolute inset-0 ${color.hover} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+        
+        <div className="relative flex items-center gap-4">
+          <div className={`h-14 w-14 rounded-2xl ${color.bg} flex items-center justify-center glass-card group-hover:scale-110 transition-transform duration-300`}>
+            <Icon className={`h-7 w-7 ${color.icon}`} />
           </div>
           
-          <div className="flex-1">
-            <h4 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+          <div className="flex-1 space-y-1">
+            <h4 className="font-semibold text-display text-foreground group-hover:text-primary transition-colors duration-300">
               {title}
             </h4>
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-body-premium text-muted-foreground/80">
               {description}
             </p>
           </div>
 
-          <ArrowRight className="h-5 w-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+          <ArrowRight className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-2 transition-all duration-300" />
         </div>
       </Card>
     </Link>
@@ -61,9 +64,9 @@ const quickActions: QuickActionProps[] = [
     href: '/transactions?action=add',
     icon: Plus,
     color: {
-      bg: 'bg-blue-50',
-      icon: 'text-blue-600',
-      hover: 'hover:bg-blue-50/50'
+      bg: 'bg-primary/10',
+      icon: 'text-primary',
+      hover: 'bg-primary/5'
     }
   },
   {
@@ -72,9 +75,9 @@ const quickActions: QuickActionProps[] = [
     href: '/transactions',
     icon: Receipt,
     color: {
-      bg: 'bg-emerald-50',
-      icon: 'text-emerald-600',
-      hover: 'hover:bg-emerald-50/50'
+      bg: 'bg-success/10',
+      icon: 'text-success',
+      hover: 'bg-success/5'
     }
   },
   {
@@ -83,9 +86,9 @@ const quickActions: QuickActionProps[] = [
     href: '/targets?action=add',
     icon: Target,
     color: {
-      bg: 'bg-violet-50',
-      icon: 'text-violet-600',
-      hover: 'hover:bg-violet-50/50'
+      bg: 'bg-secondary/10',
+      icon: 'text-secondary',
+      hover: 'bg-secondary/5'
     }
   },
   {
@@ -94,9 +97,9 @@ const quickActions: QuickActionProps[] = [
     href: '/goals?action=add',
     icon: PiggyBank,
     color: {
-      bg: 'bg-amber-50',
-      icon: 'text-amber-600',
-      hover: 'hover:bg-amber-50/50'
+      bg: 'bg-warning/10',
+      icon: 'text-warning',
+      hover: 'bg-warning/5'
     }
   },
   {
@@ -105,9 +108,9 @@ const quickActions: QuickActionProps[] = [
     href: '/categories',
     icon: Folder,
     color: {
-      bg: 'bg-pink-50',
-      icon: 'text-pink-600',
-      hover: 'hover:bg-pink-50/50'
+      bg: 'bg-info/10',
+      icon: 'text-info',
+      hover: 'bg-info/5'
     }
   },
   {
@@ -116,55 +119,77 @@ const quickActions: QuickActionProps[] = [
     href: '/reports',
     icon: BarChart3,
     color: {
-      bg: 'bg-indigo-50',
-      icon: 'text-indigo-600',
-      hover: 'hover:bg-indigo-50/50'
+      bg: 'bg-primary/10',
+      icon: 'text-primary',
+      hover: 'bg-primary/5'
     }
   }
 ]
 
 export function QuickActions() {
   return (
-    <Card className="p-6 bg-white/60 backdrop-blur-sm">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-slate-900">Quick Actions</h3>
+    <Card variant="premium" className="p-8">
+      <div className="space-y-8">
+        {/* Premium Header */}
+        <div className="space-y-3 animate-in">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center glass-card">
+              <Zap className="h-5 w-5 text-primary" />
+            </div>
+            <h3 className="text-xl font-semibold text-display text-foreground">Quick Actions</h3>
+          </div>
+          
+          <p className="text-body-premium text-muted-foreground/80 max-w-xl">
+            Common tasks and shortcuts to get things done faster
+          </p>
         </div>
-        
-        <p className="text-sm text-slate-600 -mt-4">
-          Common tasks and shortcuts to get things done faster
-        </p>
 
-        {/* Actions Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Premium Actions Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {quickActions.map((action, index) => (
-            <QuickAction
+            <div 
               key={index}
-              title={action.title}
-              description={action.description}
-              href={action.href}
-              icon={action.icon}
-              color={action.color}
-            />
+              className="animate-in"
+              style={{ animationDelay: `${(index + 1) * 100}ms` }}
+            >
+              <QuickAction
+                title={action.title}
+                description={action.description}
+                href={action.href}
+                icon={action.icon}
+                color={action.color}
+              />
+            </div>
           ))}
         </div>
 
-        {/* Additional Quick Links */}
-        <div className="pt-4 border-t border-slate-100">
-          <div className="flex flex-wrap gap-2">
+        {/* Premium Quick Links */}
+        <div className="pt-6 border-t border-border/50">
+          <div className="flex flex-wrap gap-3 animate-in">
             <Link href="/achievements">
-              <Button variant="outline" size="sm" className="text-xs">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-sm font-medium hover-lift glass-card bg-glass-bg"
+              >
                 🏆 Achievements
               </Button>
             </Link>
             <Link href="/settings">
-              <Button variant="outline" size="sm" className="text-xs">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-sm font-medium hover-lift glass-card bg-glass-bg"
+              >
                 ⚙️ Settings
               </Button>
             </Link>
-            <Button variant="outline" size="sm" className="text-xs" disabled>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="text-sm font-medium glass-card bg-glass-bg opacity-60" 
+              disabled
+            >
               📊 Export Data
             </Button>
           </div>

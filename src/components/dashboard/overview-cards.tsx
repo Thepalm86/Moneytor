@@ -47,18 +47,21 @@ const formatCurrency = (amount: number) => {
 
 const TrendIndicator = ({ trend, label }: { trend: TrendData; label: string }) => {
   const Icon = trend.isPositive ? TrendingUp : TrendingDown
-  const colorClass = trend.isPositive ? 'text-emerald-600' : 'text-rose-600'
+  const colorClass = trend.isPositive ? 'text-success' : 'text-destructive'
+  const bgClass = trend.isPositive ? 'bg-success/10' : 'bg-destructive/10'
   const sign = trend.isPositive ? '+' : ''
 
   return (
-    <div className="mt-4 flex items-center gap-2">
-      <div className={`p-1 rounded-full ${trend.isPositive ? 'bg-emerald-50' : 'bg-rose-50'}`}>
-        <Icon className={`h-3 w-3 ${colorClass}`} />
+    <div className="mt-4 flex items-center gap-3 animate-in">
+      <div className={`p-1.5 rounded-lg glass-card ${bgClass}`}>
+        <Icon className={`h-3.5 w-3.5 ${colorClass}`} />
       </div>
-      <span className={`text-sm font-medium ${colorClass}`}>
-        {sign}{Math.abs(trend.percentage).toFixed(1)}%
-      </span>
-      <span className="text-sm text-slate-500">{label}</span>
+      <div className="flex items-center gap-2">
+        <span className={`text-sm font-semibold ${colorClass}`}>
+          {sign}{Math.abs(trend.percentage).toFixed(1)}%
+        </span>
+        <span className="text-xs text-muted-foreground/70 font-medium">{label}</span>
+      </div>
     </div>
   )
 }
@@ -70,8 +73,8 @@ const MetricCard = ({
   trend, 
   badge,
   className = "",
-  iconBgColor = "bg-blue-50",
-  iconColor = "text-blue-600"
+  iconBgColor = "bg-primary/10",
+  iconColor = "text-primary"
 }: {
   title: string
   value: string | number
@@ -83,43 +86,56 @@ const MetricCard = ({
   iconColor?: string
 }) => {
   return (
-    <Card className={`p-6 hover:shadow-lg transition-all duration-200 border-0 bg-white/60 backdrop-blur-sm ${className}`}>
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-slate-600">{title}</p>
-            <p className="text-2xl font-bold text-slate-900">
+    <Card 
+      variant="premium" 
+      className={`p-6 hover-lift hover-glow group relative overflow-hidden h-full flex flex-col ${className}`}
+    >
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      
+      <div className="relative flex flex-col h-full">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-1">
+            <p className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
+              {title}
+            </p>
+            <p className="text-2xl font-bold text-display text-foreground leading-tight">
               {typeof value === 'number' ? formatCurrency(value) : value}
             </p>
           </div>
-          <div className={`h-12 w-12 rounded-xl ${iconBgColor} flex items-center justify-center`}>
-            <Icon className={`h-6 w-6 ${iconColor}`} />
+          <div className={`h-12 w-12 rounded-xl ${iconBgColor} flex items-center justify-center glass-card group-hover:scale-105 transition-transform duration-300 flex-shrink-0`}>
+            <Icon className={`h-5 w-5 ${iconColor}`} />
           </div>
         </div>
 
-        {badge && (
-          <Badge variant={badge.variant || 'secondary'} className="text-xs">
-            {badge.text}
-          </Badge>
-        )}
+        <div className="flex flex-col justify-end flex-1 space-y-3">
+          {badge && (
+            <Badge 
+              variant={badge.variant || 'secondary'} 
+              className="text-xs font-medium px-3 py-1 rounded-full w-fit"
+            >
+              {badge.text}
+            </Badge>
+          )}
 
-        {trend && <TrendIndicator trend={trend} label="from last month" />}
+          {trend && <TrendIndicator trend={trend} label="from last month" />}
+        </div>
       </div>
     </Card>
   )
 }
 
 const LoadingCard = () => (
-  <Card className="p-6 bg-white/60 backdrop-blur-sm">
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-8 w-32" />
-        </div>
-        <Skeleton className="h-12 w-12 rounded-xl" />
+  <Card variant="premium" className="p-6 animate-pulse h-full flex flex-col">
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex-1">
+        <Skeleton className="h-3 w-20 bg-muted/30 mb-2" />
+        <Skeleton className="h-8 w-28 bg-muted/40" />
       </div>
-      <Skeleton className="h-5 w-40" />
+      <Skeleton className="h-12 w-12 rounded-xl bg-muted/30 flex-shrink-0" />
+    </div>
+    <div className="flex flex-col justify-end flex-1">
+      <Skeleton className="h-4 w-32 bg-muted/30" />
     </div>
   </Card>
 )
@@ -277,9 +293,11 @@ export function OverviewCards() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 animate-in">
         {[...Array(4)].map((_, i) => (
-          <LoadingCard key={i} />
+          <div key={i} style={{ animationDelay: `${i * 100}ms` }}>
+            <LoadingCard />
+          </div>
         ))}
       </div>
     )
@@ -287,10 +305,15 @@ export function OverviewCards() {
 
   if (error) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6 col-span-full text-center">
-          <p className="text-rose-600 mb-2">Error loading financial data</p>
-          <p className="text-sm text-slate-500">{error}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <Card variant="premium" className="p-8 col-span-full text-center space-y-3">
+          <div className="h-12 w-12 mx-auto rounded-2xl bg-destructive/10 flex items-center justify-center">
+            <DollarSign className="h-6 w-6 text-destructive" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-destructive font-medium">Error loading financial data</p>
+            <p className="text-sm text-muted-foreground/70">{error}</p>
+          </div>
         </Card>
       </div>
     )
@@ -299,45 +322,53 @@ export function OverviewCards() {
   if (!metrics) return null
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <MetricCard
-        title="Current Balance"
-        value={metrics.totalBalance}
-        icon={DollarSign}
-        trend={trends.balance}
-        iconBgColor="bg-blue-50"
-        iconColor="text-blue-600"
-      />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="animate-in" style={{ animationDelay: '100ms' }}>
+        <MetricCard
+          title="Current Balance"
+          value={metrics.totalBalance}
+          icon={DollarSign}
+          trend={trends.balance}
+          iconBgColor="bg-primary/10"
+          iconColor="text-primary"
+        />
+      </div>
 
-      <MetricCard
-        title="Monthly Income"
-        value={metrics.monthlyIncome}
-        icon={ArrowUpRight}
-        trend={trends.income}
-        iconBgColor="bg-emerald-50"
-        iconColor="text-emerald-600"
-      />
+      <div className="animate-in" style={{ animationDelay: '200ms' }}>
+        <MetricCard
+          title="Monthly Income"
+          value={metrics.monthlyIncome}
+          icon={ArrowUpRight}
+          trend={trends.income}
+          iconBgColor="bg-success/10"
+          iconColor="text-success"
+        />
+      </div>
 
-      <MetricCard
-        title="Monthly Expenses"
-        value={metrics.monthlyExpenses}
-        icon={ArrowDownRight}
-        trend={trends.expense}
-        iconBgColor="bg-rose-50"
-        iconColor="text-rose-600"
-      />
+      <div className="animate-in" style={{ animationDelay: '300ms' }}>
+        <MetricCard
+          title="Monthly Expenses"
+          value={metrics.monthlyExpenses}
+          icon={ArrowDownRight}
+          trend={trends.expense}
+          iconBgColor="bg-destructive/10"
+          iconColor="text-destructive"
+        />
+      </div>
 
-      <MetricCard
-        title="Savings Goals"
-        value={metrics.savingsGoals.total}
-        icon={PiggyBank}
-        badge={{
-          text: `${metrics.savingsGoals.active} active`,
-          variant: metrics.savingsGoals.active > 0 ? 'success' : 'secondary'
-        }}
-        iconBgColor="bg-violet-50"
-        iconColor="text-violet-600"
-      />
+      <div className="animate-in" style={{ animationDelay: '400ms' }}>
+        <MetricCard
+          title="Savings Goals"
+          value={metrics.savingsGoals.total}
+          icon={PiggyBank}
+          badge={{
+            text: `${metrics.savingsGoals.active} active`,
+            variant: metrics.savingsGoals.active > 0 ? 'success' : 'secondary'
+          }}
+          iconBgColor="bg-secondary/10"
+          iconColor="text-secondary"
+        />
+      </div>
     </div>
   )
 }

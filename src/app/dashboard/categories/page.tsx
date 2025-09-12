@@ -1,19 +1,19 @@
 import { DashboardLayout, PageWrapper, ContentArea } from '@/components/layout'
-import { OverviewTab } from '@/components/dashboard'
+import { CategoriesTab } from '@/components/dashboard'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default function DashboardPage() {
+export default function CategoriesPage() {
   return (
     <DashboardLayout>
       <PageWrapper 
-        title="Dashboard"
-        description="Welcome back! Here's an overview of your financial activity."
+        title="Categories"
+        description="Organize your transactions with custom categories"
         actions={null}
       >
         <ContentArea>
-          <OverviewTab />
+          <CategoriesTab />
         </ContentArea>
       </PageWrapper>
     </DashboardLayout>

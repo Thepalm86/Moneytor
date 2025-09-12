@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore } from '@/lib/stores/navigation-store'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -250,7 +249,18 @@ const SearchBar: React.FC = () => {
 }
 
 const MobileMenuButton: React.FC = () => {
-  const { mobileMenuOpen, toggleMobileMenu, isMobile } = useNavigationStore()
+  const [isMobile, setIsMobile] = React.useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   if (!isMobile) {
     return null
@@ -260,7 +270,7 @@ const MobileMenuButton: React.FC = () => {
     <Button
       variant="ghost"
       size="icon"
-      onClick={toggleMobileMenu}
+      onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
       className="hover:bg-accent/50 lg:hidden"
     >
       {mobileMenuOpen ? (
@@ -273,51 +283,67 @@ const MobileMenuButton: React.FC = () => {
 }
 
 const Breadcrumbs: React.FC = () => {
-  const { breadcrumbs, pageTitle } = useNavigationStore()
+  const pathname = usePathname()
   
-  if (!breadcrumbs.length && !pageTitle) {
-    return null
+  // Generate breadcrumbs from URL path
+  const generateBreadcrumbs = () => {
+    const segments = pathname.split('/').filter(Boolean)
+    
+    if (segments.length === 0) return []
+    
+    const breadcrumbs = segments.map((segment, index) => {
+      const href = '/' + segments.slice(0, index + 1).join('/')
+      const label = segment.charAt(0).toUpperCase() + segment.slice(1)
+      return { label, href }
+    })
+    
+    return breadcrumbs
+  }
+
+  const breadcrumbs = generateBreadcrumbs()
+  
+  if (breadcrumbs.length <= 1) {
+    return null // Don't show breadcrumbs for root or single level
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      {breadcrumbs.length > 0 && (
-        <nav className="flex items-center space-x-1 text-sm text-muted-foreground">
-          {breadcrumbs.map((crumb, index) => (
-            <React.Fragment key={index}>
-              {index > 0 && <span>/</span>}
-              {crumb.href ? (
-                <a
-                  href={crumb.href}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {crumb.label}
-                </a>
-              ) : (
-                <span>{crumb.label}</span>
-              )}
-            </React.Fragment>
-          ))}
-        </nav>
-      )}
-      
-      {pageTitle && (
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {pageTitle}
-        </h1>
-      )}
-    </div>
+    <nav className="flex items-center space-x-1 text-sm text-muted-foreground">
+      {breadcrumbs.map((crumb, index) => (
+        <React.Fragment key={index}>
+          {index > 0 && <span>/</span>}
+          {index === breadcrumbs.length - 1 ? (
+            <span className="text-foreground font-medium">{crumb.label}</span>
+          ) : (
+            <a
+              href={crumb.href}
+              className="hover:text-foreground transition-colors"
+            >
+              {crumb.label}
+            </a>
+          )}
+        </React.Fragment>
+      ))}
+    </nav>
   )
 }
 
 export const Header: React.FC<HeaderProps> = ({ className }) => {
-  const { sidebarOpen, sidebarCollapsed, isMobile } = useNavigationStore()
+  const [isMobile, setIsMobile] = React.useState(false)
 
-  // Calculate left margin based on sidebar state
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Calculate left margin - simplified
   const getMarginLeft = () => {
     if (isMobile) return '0px'
-    if (!sidebarOpen) return '0px'
-    return sidebarCollapsed ? '64px' : '256px'
+    return '256px' // Standard sidebar width
   }
 
   return (

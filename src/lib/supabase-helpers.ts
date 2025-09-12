@@ -58,23 +58,87 @@ export const categoryOperations = {
   },
 
   /**
-   * Create a new category
+   * Check if category name already exists for user and type
+   */
+  async checkDuplicate(userId: string, name: string, type: 'income' | 'expense'): Promise<boolean> {
+    const { data, error } = await typedSupabase
+      .from('categories')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('name', name.trim())
+      .eq('type', type)
+      .limit(1)
+
+    if (error) throw error
+    return data.length > 0
+  },
+
+  /**
+   * Create a new category with duplicate checking
    */
   async create(categoryData: CategoryInsert) {
+    // Check for duplicates first
+    const isDuplicate = await this.checkDuplicate(
+      categoryData.user_id, 
+      categoryData.name, 
+      categoryData.type
+    )
+    
+    if (isDuplicate) {
+      throw new Error(`A ${categoryData.type} category named "${categoryData.name}" already exists. Please use a different name.`)
+    }
+
     const { data, error } = await typedSupabase
       .from('categories')
       .insert(categoryData)
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      // Handle specific database errors
+      if (error.code === '23505' && error.message.includes('categories_user_id_name_type_key')) {
+        throw new Error(`A ${categoryData.type} category named "${categoryData.name}" already exists. Please use a different name.`)
+      }
+      throw error
+    }
     return data as CategoryRow
   },
 
   /**
-   * Update a category
+   * Update a category with duplicate checking
    */
   async update(categoryId: string, userId: string, updates: CategoryUpdate) {
+    // If name or type is being updated, check for duplicates
+    if (updates.name || updates.type) {
+      const { data: currentCategory } = await typedSupabase
+        .from('categories')
+        .select('name, type')
+        .eq('id', categoryId)
+        .eq('user_id', userId)
+        .single()
+
+      if (currentCategory) {
+        const newName = updates.name || currentCategory.name
+        const newType = updates.type || currentCategory.type
+        
+        // Check if the new combination would create a duplicate (excluding current category)
+        const { data: duplicates, error: duplicateError } = await typedSupabase
+          .from('categories')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('name', newName.trim())
+          .eq('type', newType)
+          .neq('id', categoryId)
+          .limit(1)
+
+        if (duplicateError) throw duplicateError
+        
+        if (duplicates.length > 0) {
+          throw new Error(`A ${newType} category named "${newName}" already exists. Please use a different name.`)
+        }
+      }
+    }
+
     const { data, error } = await typedSupabase
       .from('categories')
       .update(updates)
@@ -83,7 +147,13 @@ export const categoryOperations = {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      // Handle specific database errors
+      if (error.code === '23505' && error.message.includes('categories_user_id_name_type_key')) {
+        throw new Error(`A category with that name already exists. Please use a different name.`)
+      }
+      throw error
+    }
     return data as CategoryRow
   },
 
@@ -207,11 +277,44 @@ export const transactionOperations = {
 }
 
 /**
- * Generic error handler for Supabase operations
+ * Generic error handler for Supabase operations with user-friendly messages
  */
 export function handleSupabaseError(error: any, operation: string): never {
   console.error(`Supabase ${operation} error:`, error)
-  throw new Error(`Failed to ${operation}: ${error.message || 'Unknown error'}`)
+  
+  // Handle specific database constraint errors with user-friendly messages
+  if (error?.code === '23505') {
+    if (error.message.includes('categories_user_id_name_type_key')) {
+      throw new Error('A category with that name and type already exists. Please choose a different name.')
+    }
+    if (error.message.includes('unique')) {
+      throw new Error('This item already exists. Please use a different name.')
+    }
+  }
+  
+  // Handle foreign key constraint errors
+  if (error?.code === '23503') {
+    throw new Error('Cannot delete this item because it is being used elsewhere. Please remove all related items first.')
+  }
+  
+  // Handle permission errors
+  if (error?.code === '42501' || error?.message?.includes('permission')) {
+    throw new Error('You do not have permission to perform this action.')
+  }
+  
+  // Handle not found errors
+  if (error?.code === 'PGRST116' || error?.message?.includes('not found')) {
+    throw new Error('The requested item was not found.')
+  }
+  
+  // Handle network/connection errors
+  if (error?.message?.includes('network') || error?.message?.includes('connection')) {
+    throw new Error('Connection error. Please check your internet connection and try again.')
+  }
+  
+  // Default user-friendly message
+  const userMessage = error?.message || 'An unexpected error occurred'
+  throw new Error(`Failed to ${operation}: ${userMessage}`)
 }
 
 /**

@@ -13,6 +13,10 @@ const nextConfig = {
       },
     ],
   },
+  // Prevent full page refresh on tab switch
+  swcMinify: true,
+  poweredByHeader: false,
+  reactStrictMode: true,
 }
 
 module.exports = nextConfig

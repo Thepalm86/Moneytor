@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { useNavigationStore } from '@/lib/stores/navigation-store'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
 
@@ -15,17 +14,30 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   className,
 }) => {
-  const { sidebarOpen, sidebarCollapsed, isMobile } = useNavigationStore()
+  // Simple responsive layout - sidebar handles its own state
+  const [isMobile, setIsMobile] = React.useState(false)
+  
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
-  // Calculate main content margin based on sidebar state
+  // Calculate main content margin - simplified
   const getMainContentMargin = () => {
     if (isMobile) return '0px'
-    if (!sidebarOpen) return '0px'
-    return sidebarCollapsed ? '64px' : '256px'
+    return '256px' // Standard sidebar width
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/50">
+    <div className="min-h-screen gradient-background">
+      {/* Enhanced ambient lighting effect */}
+      <div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none" />
+      
       {/* Sidebar */}
       <Sidebar />
 
@@ -35,17 +47,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* Main Content Area */}
       <main
         className={cn(
-          'flex-1 transition-all duration-300 ease-in-out',
+          'flex-1 transition-all duration-500 ease-out relative z-10',
           className
         )}
         style={{
           marginLeft: getMainContentMargin(),
-          paddingTop: '64px', // Height of the header
+          paddingTop: '64px', // Standard header height
         }}
       >
         {/* Page Content Container */}
-        <div className="container mx-auto p-4 lg:p-6 space-y-6">
-          {children}
+        <div className="container mx-auto px-4 lg:px-6 pt-4 pb-8 scrollbar-premium overflow-x-hidden">
+          <div className="animate-slide-up">
+            {children}
+          </div>
         </div>
       </main>
     </div>
@@ -68,44 +82,36 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({
   actions,
   className,
 }) => {
-  // Update navigation store with page information
-  React.useEffect(() => {
-    if (title) {
-      useNavigationStore.getState().setCurrentPage(
-        window.location.pathname.split('/').pop() || '',
-        title
-      )
-    }
-  }, [title])
+  // No need to update navigation store - using URL-based navigation
 
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* Page Header */}
+    <div className={cn('space-y-4', className)}>
+      {/* Premium Page Header */}
       {(title || description || actions) && (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between animate-in mb-6">
           <div className="space-y-1">
             {title && (
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              <h1 className="text-2xl font-bold text-display text-gradient leading-tight">
                 {title}
               </h1>
             )}
             {description && (
-              <p className="text-muted-foreground max-w-2xl">
+              <p className="text-body-premium text-muted-foreground/90 max-w-2xl text-sm leading-relaxed">
                 {description}
               </p>
             )}
           </div>
           
           {actions && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 animate-scale-in">
               {actions}
             </div>
           )}
         </div>
       )}
 
-      {/* Page Content */}
-      <div className="space-y-6">
+      {/* Premium Page Content */}
+      <div className="space-y-4">
         {children}
       </div>
     </div>
@@ -163,13 +169,13 @@ export const GridLayout: React.FC<GridLayoutProps> = ({
   }
 
   const gapClasses = {
-    sm: 'gap-3',
-    md: 'gap-4 lg:gap-6',
-    lg: 'gap-6 lg:gap-8',
+    sm: 'gap-4',
+    md: 'gap-6 lg:gap-8',
+    lg: 'gap-8 lg:gap-12',
   }
 
   return (
-    <div className={cn('grid', colsClasses[cols], gapClasses[gap], className)}>
+    <div className={cn('grid auto-rows-fr', colsClasses[cols], gapClasses[gap], className)}>
       {children}
     </div>
   )
@@ -192,31 +198,31 @@ export const Section: React.FC<SectionProps> = ({
   className,
 }) => {
   return (
-    <section className={cn('space-y-4', className)}>
+    <section className={cn('space-y-6 animate-in', className)}>
       {(title || description || actions) && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
             {title && (
-              <h2 className="text-lg font-medium text-foreground">
+              <h2 className="text-xl font-semibold text-display text-foreground">
                 {title}
               </h2>
             )}
             {description && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body-premium text-muted-foreground/80 max-w-xl">
                 {description}
               </p>
             )}
           </div>
           
           {actions && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {actions}
             </div>
           )}
         </div>
       )}
 
-      <div>
+      <div className="space-y-4">
         {children}
       </div>
     </section>
@@ -259,10 +265,10 @@ export const LoadingWrapper: React.FC<LoadingWrapperProps> = ({
   if (isLoading) {
     return (
       loadingComponent || (
-        <div className="flex items-center justify-center py-12">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            <span className="text-sm">Loading...</span>
+        <div className="flex items-center justify-center py-16">
+          <div className="flex items-center gap-3 text-muted-foreground animate-in">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <span className="text-sm font-medium">Loading...</span>
           </div>
         </div>
       )
@@ -289,27 +295,31 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   className,
 }) => {
   return (
-    <div className={cn('text-center py-12 space-y-4', className)}>
+    <div className={cn('text-center py-16 space-y-6 animate-in', className)}>
       {icon && (
         <div className="flex justify-center">
-          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center text-muted-foreground/70 glass-card">
             {icon}
           </div>
         </div>
       )}
       
-      <div className="space-y-2">
-        <h3 className="text-lg font-medium text-foreground">
+      <div className="space-y-3">
+        <h3 className="text-xl font-semibold text-display text-foreground">
           {title}
         </h3>
         {description && (
-          <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+          <p className="text-muted-foreground/80 text-body-premium max-w-md mx-auto leading-relaxed">
             {description}
           </p>
         )}
       </div>
       
-      {action && action}
+      {action && (
+        <div className="pt-2">
+          {action}
+        </div>
+      )}
     </div>
   )
 }

@@ -218,3 +218,12 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_key
 - Data retention policies
 
 This project represents a modern, scalable personal finance application built with industry best practices and premium user experience in mind.
+
+## Important Development Notes
+
+### CRITICAL GIT POLICY
+**NEVER PUSH TO GITHUB WITHOUT EXPLICIT USER APPROVAL**
+- Always commit changes locally first
+- Always ask for permission before pushing to remote repository  
+- Wait for explicit "yes" or "push now" approval from user
+- This applies to ALL git push operations regardless of context
