@@ -1,7 +1,11 @@
-import { DashboardLayout, PageWrapper, ContentArea } from '@/components/layout'
-import { ReportsTab } from '@/components/dashboard'
-import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Metadata } from 'next';
+import { DashboardLayout, PageWrapper, ContentArea } from '@/components/layout';
+import { ReportsTab } from '@/components/dashboard/reports-tab';
+
+export const metadata: Metadata = {
+  title: 'Reports & Analytics | Moneytor',
+  description: 'Analyze your financial data with comprehensive reports and interactive charts.',
+};
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -11,18 +15,13 @@ export default function ReportsPage() {
     <DashboardLayout>
       <PageWrapper 
         title="Reports & Analytics"
-        description="Detailed financial analysis and insights"
-        actions={
-          <Button size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Generate Report
-          </Button>
-        }
+        description="Gain insights into your financial patterns with comprehensive analytics and interactive visualizations."
+        actions={null}
       >
         <ContentArea>
           <ReportsTab />
         </ContentArea>
       </PageWrapper>
     </DashboardLayout>
-  )
+  );
 }

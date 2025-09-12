@@ -58,7 +58,7 @@ const TransactionItem = ({ transaction }: { transaction: Transaction }) => {
   const Icon = isIncome ? ArrowUpRight : ArrowDownRight
 
   return (
-    <div className="group flex items-center justify-between py-4 border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50 rounded-lg px-2 -mx-2 transition-colors">
+    <div className="group flex items-center justify-between py-4 border-b border-border/30 last:border-b-0 hover:bg-muted/30 rounded-lg px-3 -mx-3 transition-all duration-300">
       <div className="flex items-center gap-4">
         {/* Transaction Icon */}
         <div className={`
@@ -70,7 +70,7 @@ const TransactionItem = ({ transaction }: { transaction: Transaction }) => {
 
         {/* Transaction Details */}
         <div className="space-y-1">
-          <p className="font-medium text-slate-900 text-sm group-hover:text-blue-600 transition-colors">
+          <p className="font-medium text-foreground text-sm bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/80 transition-all duration-300">
             {transaction.description}
           </p>
           

@@ -173,7 +173,8 @@ export function CategoriesTab() {
       <div className="flex justify-end mb-4">
         <Button 
           onClick={() => setShowForm(true)} 
-          className="bg-gradient-primary hover:opacity-90 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover-lift"
+          variant="default"
+          className="shadow-lg hover:shadow-xl transition-all duration-300 hover-lift"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Category

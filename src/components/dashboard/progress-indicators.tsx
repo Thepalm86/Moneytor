@@ -17,8 +17,9 @@ import {
   Plus,
   ExternalLink
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase-client'
 import { useAuth } from '@/lib/auth-context'
+import { targetOperations, savingGoalOperations } from '@/lib/supabase-helpers'
+import { supabase } from '@/lib/supabase-client'
 
 interface BudgetTarget {
   id: string
@@ -241,39 +242,30 @@ export function BudgetProgress() {
       try {
         setLoading(true)
         
-        const { data: targets, error } = await supabase
-          .from('targets')
-          .select(`
-            id,
-            name,
-            target_amount,
-            period_end,
-            category:categories(name, color)
-          `)
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-          .limit(4)
+        // Use the new targetOperations to get targets with real spending progress
+        const targets = await targetOperations.fetchWithProgress(user.id)
+        
+        // Filter active targets and limit to 4 for dashboard
+        const activeTargets = targets
+          .filter(target => target.is_active)
+          .slice(0, 4)
 
-        if (error) throw error
-
-        // Calculate spent amount for each budget (simplified)
-        const budgetData: BudgetTarget[] = targets?.map((target: any) => {
-          const spent = Math.random() * Number(target.target_amount) // Mock data
-          const percentage = (spent / Number(target.target_amount)) * 100
-          const daysLeft = getDaysLeft(target.period_end)
-          
-          return {
-            id: target.id,
-            name: target.name,
-            target_amount: Number(target.target_amount),
-            spent,
-            percentage,
-            period_end: target.period_end,
-            category: target.category,
-            daysLeft,
-            status: getBudgetStatus(percentage)
-          }
-        }) || []
+        // Transform to BudgetTarget format
+        const budgetData: BudgetTarget[] = activeTargets.map(target => ({
+          id: target.id,
+          name: target.name,
+          target_amount: target.target_amount,
+          spent: target.current_spending,
+          percentage: target.progress_percentage,
+          period_end: target.period_end,
+          category: target.category,
+          daysLeft: target.days_remaining,
+          status: target.status === 'on_track' 
+            ? 'on-track' 
+            : target.status === 'warning' 
+            ? 'warning' 
+            : 'over-budget'
+        }))
 
         setBudgets(budgetData)
       } catch (error) {
@@ -300,13 +292,13 @@ export function BudgetProgress() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Link href="/targets?action=add">
+            <Link href="/dashboard/targets">
               <Button variant="outline" size="sm">
                 <Plus className="h-4 w-4 mr-1" />
                 New
               </Button>
             </Link>
-            <Link href="/targets">
+            <Link href="/dashboard/targets">
               <Button variant="outline" size="sm">
                 View All
                 <ExternalLink className="h-4 w-4 ml-1" />
@@ -324,7 +316,7 @@ export function BudgetProgress() {
             <p className="text-sm text-slate-400 mb-4">
               Create budget targets to track your spending
             </p>
-            <Link href="/targets?action=add">
+            <Link href="/dashboard/targets">
               <Button size="sm">
                 Create Your First Budget
               </Button>
@@ -354,26 +346,24 @@ export function SavingGoalsProgress() {
       try {
         setLoading(true)
         
-        const { data, error } = await supabase
-          .from('saving_goals')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(6)
-
-        if (error) throw error
-
-        const goalData: SavingGoal[] = data?.map((goal: any) => ({
+        // Use the new savingGoalOperations to get goals with progress
+        const goalsData = await savingGoalOperations.fetchWithProgress(user.id)
+        
+        // Limit to 6 for dashboard display
+        const limitedGoals = goalsData.slice(0, 6)
+        
+        // Transform to SavingGoal format
+        const goalData: SavingGoal[] = limitedGoals.map((goal: any) => ({
           id: goal.id,
           name: goal.name,
           description: goal.description,
-          target_amount: Number(goal.target_amount),
-          current_amount: Number(goal.current_amount),
+          target_amount: goal.target_amount,
+          current_amount: goal.current_amount,
           target_date: goal.target_date,
-          percentage: (Number(goal.current_amount) / Number(goal.target_amount)) * 100,
+          percentage: goal.progress_percentage,
           is_achieved: goal.is_achieved,
           color: goal.color || '#3b82f6'
-        })) || []
+        }))
 
         setGoals(goalData)
       } catch (error) {
@@ -400,13 +390,13 @@ export function SavingGoalsProgress() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Link href="/goals?action=add">
+            <Link href="/dashboard/goals">
               <Button variant="outline" size="sm">
                 <Plus className="h-4 w-4 mr-1" />
                 New
               </Button>
             </Link>
-            <Link href="/goals">
+            <Link href="/dashboard/goals">
               <Button variant="outline" size="sm">
                 View All
                 <ExternalLink className="h-4 w-4 ml-1" />
@@ -424,7 +414,7 @@ export function SavingGoalsProgress() {
             <p className="text-sm text-slate-400 mb-4">
               Set financial goals to track your progress
             </p>
-            <Link href="/goals?action=add">
+            <Link href="/dashboard/goals">
               <Button size="sm">
                 Create Your First Goal
               </Button>

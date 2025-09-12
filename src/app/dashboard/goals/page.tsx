@@ -1,29 +1,27 @@
-import { DashboardLayout, PageWrapper, ContentArea } from '@/components/layout'
-import { GoalsTab } from '@/components/dashboard'
-import { Button } from '@/components/ui/button'
+import { Metadata } from 'next';
+import { DashboardLayout, PageWrapper, ContentArea } from '@/components/layout';
+import { GoalsTab } from '@/components/dashboard/goals-tab';
+
+export const metadata: Metadata = {
+  title: 'Saving Goals | Moneytor',
+  description: 'Track and manage your saving goals with progress monitoring and milestone achievements.',
+};
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-import { Plus } from 'lucide-react'
 
 export default function GoalsPage() {
   return (
     <DashboardLayout>
       <PageWrapper 
         title="Saving Goals"
-        description="Track your savings progress"
-        actions={
-          <Button size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Goal
-          </Button>
-        }
+        description="Set, track, and achieve your financial savings objectives with smart goal management."
+        actions={null}
       >
         <ContentArea>
           <GoalsTab />
         </ContentArea>
       </PageWrapper>
     </DashboardLayout>
-  )
+  );
 }

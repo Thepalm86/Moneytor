@@ -42,10 +42,10 @@ const QuickAction = ({ title, description, href, icon: Icon, color }: QuickActio
           </div>
           
           <div className="flex-1 space-y-1">
-            <h4 className="font-semibold text-display text-foreground group-hover:text-primary transition-colors duration-300">
+            <h4 className="font-semibold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/80 transition-all duration-300">
               {title}
             </h4>
-            <p className="text-sm text-body-premium text-muted-foreground/80">
+            <p className="text-sm font-medium text-muted-foreground/70 leading-relaxed">
               {description}
             </p>
           </div>
