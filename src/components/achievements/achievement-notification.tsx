@@ -53,41 +53,41 @@ export function AchievementNotification({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md mx-auto">
         <DialogHeader className="text-center pb-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-4 animate-bounce">
-            <IconComponent className="h-8 w-8 text-white" />
+          <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-4 animate-celebration-bounce celebration-glow">
+            <IconComponent className="h-10 w-10 text-white animate-celebration-pulse" />
           </div>
-          <DialogTitle className="text-xl font-bold text-center">
-            🎉 Achievement Unlocked!
+          <DialogTitle className="text-2xl font-bold text-center text-gradient-luxury animate-fade-in-up">
+            🎉 Achievement Unlocked! 🎉
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
           {/* Achievement Card */}
-          <Card variant="premium" className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-secondary/5">
+          <Card variant="premium" className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-secondary/5 animate-scale-in celebration-glow">
             <CardContent className="p-6 text-center">
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div 
-                  className="w-12 h-12 mx-auto rounded-lg flex items-center justify-center"
+                  className="w-16 h-16 mx-auto rounded-xl flex items-center justify-center shadow-xl animate-celebration-sparkle"
                   style={{ backgroundColor: achievement.badge_color }}
                 >
-                  <IconComponent className="h-6 w-6 text-white" />
+                  <IconComponent className="h-8 w-8 text-white" />
                 </div>
                 
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-gradient-primary animate-fade-in-up">
                     {achievement.name}
                   </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-muted-foreground animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                     {achievement.description}
                   </p>
                 </div>
                 
-                <div className="flex items-center justify-center gap-2">
-                  <Badge variant="secondary" className="capitalize">
+                <div className="flex items-center justify-center gap-3 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+                  <Badge variant="secondary" className="capitalize text-sm font-semibold px-3 py-1 animate-celebration-pop">
                     {achievement.category}
                   </Badge>
-                  <Badge variant="outline">
-                    {achievement.points} points
+                  <Badge variant="outline" className="text-sm font-bold px-3 py-1 celebration-glow-warning animate-celebration-pop" style={{ animationDelay: '0.1s' }}>
+                    +{achievement.points} points
                   </Badge>
                 </div>
               </div>
@@ -117,21 +117,46 @@ export function AchievementNotification({
           </div>
         </div>
 
-        {/* Confetti Animation */}
+        {/* Enhanced Confetti Animation */}
         {showConfetti && (
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {[...Array(20)].map((_, i) => (
+            {/* Main confetti particles */}
+            {[...Array(30)].map((_, i) => (
               <div
                 key={i}
-                className="absolute animate-ping"
+                className="absolute animate-confetti-fall"
                 style={{
                   left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 2}s`,
-                  animationDuration: `${1 + Math.random()}s`
+                  top: `-20px`,
+                  animationDelay: `${Math.random() * 1}s`,
+                  animationDuration: `${2 + Math.random() * 2}s`
                 }}
               >
-                <div className="w-2 h-2 bg-primary rounded-full opacity-60"></div>
+                <div 
+                  className={`w-3 h-3 rounded-full shadow-sm ${
+                    i % 6 === 0 ? 'bg-primary' : 
+                    i % 6 === 1 ? 'bg-secondary' : 
+                    i % 6 === 2 ? 'bg-accent-rose' : 
+                    i % 6 === 3 ? 'bg-accent-amber' : 
+                    i % 6 === 4 ? 'bg-accent-emerald' : 'bg-accent-cyan'
+                  }`}
+                />
+              </div>
+            ))}
+            
+            {/* Sparkle effects */}
+            {[...Array(15)].map((_, i) => (
+              <div
+                key={`sparkle-${i}`}
+                className="absolute animate-celebration-sparkle"
+                style={{
+                  left: `${20 + Math.random() * 60}%`,
+                  top: `${20 + Math.random() * 60}%`,
+                  animationDelay: `${Math.random() * 2}s`,
+                  animationDuration: `${1.5 + Math.random() * 1}s`
+                }}
+              >
+                <div className="w-1 h-1 bg-amber-400 rounded-full shadow-lg"></div>
               </div>
             ))}
           </div>

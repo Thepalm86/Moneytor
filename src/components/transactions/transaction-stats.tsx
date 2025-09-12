@@ -35,7 +35,7 @@ interface TransactionStatsProps {
 }
 
 const formatCurrency = (amount: number) => {
-  return `₪${amount.toLocaleString()}`;
+  return `${amount.toLocaleString()}₪`;
 };
 
 const TrendIndicator = ({ trend }: { trend: { percentage: number; isPositive: boolean } }) => {
@@ -236,16 +236,14 @@ export function TransactionStats({ stats }: TransactionStatsProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-3 rounded-lg bg-success/5 border border-success/20">
                 <p className="text-xl font-bold text-success">
-                  {stats.total_income > 0 ? '₪' : '0'}
-                  {stats.total_income > 0 ? stats.total_income.toLocaleString() : ''}
+                  {stats.total_income > 0 ? `${stats.total_income.toLocaleString()}₪` : '0₪'}
                 </p>
                 <p className="text-xs text-success/80 font-medium">Income</p>
               </div>
               
               <div className="text-center p-3 rounded-lg bg-destructive/5 border border-destructive/20">
                 <p className="text-xl font-bold text-destructive">
-                  {stats.total_expenses > 0 ? '₪' : '0'}
-                  {stats.total_expenses > 0 ? stats.total_expenses.toLocaleString() : ''}
+                  {stats.total_expenses > 0 ? `${stats.total_expenses.toLocaleString()}₪` : '0₪'}
                 </p>
                 <p className="text-xs text-destructive/80 font-medium">Expenses</p>
               </div>

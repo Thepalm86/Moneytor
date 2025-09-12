@@ -43,7 +43,7 @@ export function GoalList({
   const [fundsAmount, setFundsAmount] = useState<string>('');
   const [fundsAction, setFundsAction] = useState<'add' | 'withdraw' | null>(null);
 
-  const formatCurrency = (amount: number) => `₪${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number) => `${amount.toLocaleString()}₪`;
 
   const getStatusIcon = (status: string) => {
     switch (status) {

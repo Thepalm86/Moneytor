@@ -2,6 +2,8 @@
 
 import { Card } from '@/components/ui/card';
 import { Target, TrendingUp, Calendar, DollarSign, Trophy } from 'lucide-react';
+import { useCelebration } from '@/components/celebrations';
+import { useEffect, useState } from 'react';
 
 interface GoalProgressProps {
   goal: {
@@ -22,7 +24,46 @@ interface GoalProgressProps {
 }
 
 export function GoalProgress({ goal, className = '' }: GoalProgressProps) {
-  const formatCurrency = (amount: number) => `₪${amount.toLocaleString()}`;
+  const { triggerCelebration } = useCelebration();
+  const [previousPercentage, setPreviousPercentage] = useState(goal.progress_percentage);
+  const formatCurrency = (amount: number) => `${amount.toLocaleString()}₪`;
+
+  // Check for milestone achievements
+  useEffect(() => {
+    const currentPercentage = Math.round(goal.progress_percentage);
+    const previousRounded = Math.round(previousPercentage);
+    
+    // Only trigger if this is an increase and not the initial load
+    if (currentPercentage > previousRounded && previousRounded > 0) {
+      // Check for milestone achievements
+      const milestones = [25, 50, 75, 90, 100];
+      const crossedMilestone = milestones.find(
+        milestone => previousRounded < milestone && currentPercentage >= milestone
+      );
+      
+      if (crossedMilestone) {
+        if (crossedMilestone === 100) {
+          // Goal completed celebration
+          triggerCelebration({
+            type: 'fireworks',
+            duration: 5000,
+            message: `🎉 Goal "${goal.name}" completed! You saved ${formatCurrency(goal.current_amount)}!`,
+            intensity: 'high'
+          });
+        } else {
+          // Milestone celebration
+          triggerCelebration({
+            type: 'milestone',
+            duration: 3500,
+            message: `${crossedMilestone}% milestone reached for "${goal.name}"! Keep going! 🎯`,
+            intensity: 'medium'
+          });
+        }
+      }
+    }
+    
+    setPreviousPercentage(goal.progress_percentage);
+  }, [goal.progress_percentage, goal.name, goal.current_amount, triggerCelebration, previousPercentage]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('he-IL', {
@@ -194,14 +235,20 @@ export function GoalProgress({ goal, className = '' }: GoalProgressProps) {
       {/* Achievement Message */}
       {goal.is_achieved && (
         <div className="border-t border-slate-200/50 pt-4">
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
-            <Trophy className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-            <p className="text-emerald-800 font-semibold">
-              Congratulations! You&apos;ve achieved your goal! 🎉
+          <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 text-center animate-celebration-bounce celebration-glow-success">
+            <Trophy className="w-10 h-10 text-emerald-600 mx-auto mb-3 animate-celebration-pulse" />
+            <p className="text-emerald-800 font-bold text-lg mb-2 animate-fade-in-up">
+              🎉 Congratulations! Goal Achieved! 🎉
             </p>
-            <p className="text-emerald-600 text-sm mt-1">
-              You saved {formatCurrency(goal.current_amount)} out of your {formatCurrency(goal.target_amount)} target.
+            <p className="text-emerald-700 text-sm animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+              You successfully saved {formatCurrency(goal.current_amount)} out of your {formatCurrency(goal.target_amount)} target!
             </p>
+            <div className="mt-4 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-2 rounded-full text-sm font-semibold">
+                <Trophy className="w-4 h-4" />
+                Goal Completed
+              </div>
+            </div>
           </div>
         </div>
       )}

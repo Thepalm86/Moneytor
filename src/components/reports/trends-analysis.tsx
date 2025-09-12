@@ -51,11 +51,11 @@ export function TrendsAnalysis({ monthlyData = [], expenseTrends = [], isLoading
 
   const formatCompactCurrency = (amount: number) => {
     if (amount >= 1000000) {
-      return `₪${(amount / 1000000).toFixed(1)}M`;
+      return `${(amount / 1000000).toFixed(1)}M₪`;
     } else if (amount >= 1000) {
-      return `₪${(amount / 1000).toFixed(0)}k`;
+      return `${(amount / 1000).toFixed(0)}k₪`;
     }
-    return `₪${amount.toFixed(0)}`;
+    return `${amount.toFixed(0)}₪`;
   };
 
   // Calculate trends
@@ -365,7 +365,7 @@ export function TrendsAnalysis({ monthlyData = [], expenseTrends = [], isLoading
             <div className="text-display text-2xl font-bold text-green-600">
               {monthlyData.length > 0 ? 
                 formatCompactCurrency(monthlyData.reduce((sum, m) => sum + m.income, 0) / monthlyData.length)
-                : '₪0'
+                : '0₪'
               }
             </div>
             <div className="text-body-premium text-sm text-muted-foreground">
@@ -377,7 +377,7 @@ export function TrendsAnalysis({ monthlyData = [], expenseTrends = [], isLoading
             <div className="text-display text-2xl font-bold text-red-600">
               {monthlyData.length > 0 ? 
                 formatCompactCurrency(monthlyData.reduce((sum, m) => sum + m.expenses, 0) / monthlyData.length)
-                : '₪0'
+                : '0₪'
               }
             </div>
             <div className="text-body-premium text-sm text-muted-foreground">
@@ -401,7 +401,7 @@ export function TrendsAnalysis({ monthlyData = [], expenseTrends = [], isLoading
             <div className="text-display text-2xl font-bold text-secondary">
               {expenseTrends.length > 0 ?
                 formatCompactCurrency(expenseTrends.reduce((sum, d) => sum + d.amount, 0) / expenseTrends.length)
-                : '₪0'
+                : '0₪'
               }
             </div>
             <div className="text-body-premium text-sm text-muted-foreground">

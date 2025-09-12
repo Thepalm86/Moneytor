@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useMemo, memo } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { dashboardOperations } from '@/lib/supabase-helpers'
 import { useAuth } from '@/lib/auth-context'
+import { useCachedData } from '@/hooks/use-cached-data'
 
 interface ProgressItem {
   id: string
@@ -62,7 +63,7 @@ interface UnifiedProgressData {
   }
 }
 
-const formatCurrency = (amount: number) => `₪${amount.toLocaleString()}`
+const formatCurrency = (amount: number) => `${amount.toLocaleString()}₪`
 
 const statusConfig = {
   'success': {
@@ -140,6 +141,55 @@ const AlertCard = ({ alert, index }: { alert: Alert; index: number }) => {
   )
 }
 
+const CompactProgressItem = ({ item, index }: { item: ProgressItem; index: number }) => {
+  const config = statusConfig[item.status]
+  const Icon = item.type === 'budget' ? Target : PiggyBank
+  const StatusIcon = config.icon
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.05 }}
+      className="flex-shrink-0 min-w-[200px] md:min-w-0"
+    >
+      <div className="p-3 rounded-lg border border-border/30 bg-gradient-to-r from-card/50 to-card/30 backdrop-blur-sm hover:shadow-sm transition-all duration-200">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div 
+              className="h-6 w-6 rounded-md flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${item.color}20` }}
+            >
+              <Icon className="h-3 w-3" style={{ color: item.color }} />
+            </div>
+            <span className="text-sm font-medium text-foreground truncate">{item.title}</span>
+          </div>
+          <Badge variant={config.badge} className="text-xs px-2 py-0.5">
+            {Math.round(item.percentage)}%
+          </Badge>
+        </div>
+        
+        <div className="space-y-1">
+          <div className="relative">
+            <div className="h-1.5 w-full rounded-full bg-muted/20"></div>
+            <motion.div
+              className="absolute inset-y-0 left-0 h-1.5 rounded-full"
+              style={{ background: item.color }}
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(item.percentage, 100)}%` }}
+              transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{formatCurrency(item.current)}</span>
+            <span>{formatCurrency(item.target)}</span>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 const ProgressItemCard = ({ item, index }: { item: ProgressItem; index: number }) => {
   const config = statusConfig[item.status]
   const Icon = item.type === 'budget' ? Target : PiggyBank
@@ -162,17 +212,17 @@ const ProgressItemCard = ({ item, index }: { item: ProgressItem; index: number }
     >
       <Card 
         variant="glass" 
-        className="p-5 hover:shadow-lg transition-all duration-200 group backdrop-blur-sm border border-border/30"
+        className="p-4 hover:shadow-lg transition-all duration-200 group backdrop-blur-sm border border-border/30"
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3">
               <div 
-                className="h-10 w-10 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0"
+                className="h-8 w-8 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0"
                 style={{ backgroundColor: `${item.color}20`, borderColor: `${item.color}40` }}
               >
-                <Icon className="h-5 w-5" style={{ color: item.color }} />
+                <Icon className="h-4 w-4" style={{ color: item.color }} />
               </div>
               
               <div className="space-y-1">
@@ -232,7 +282,7 @@ const ProgressItemCard = ({ item, index }: { item: ProgressItem; index: number }
 }
 
 const LoadingHub = () => (
-  <Card variant="premium" className="p-8 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-2xl animate-pulse">
+  <Card variant="premium" className="p-6 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-2xl animate-pulse">
     <div className="space-y-8">
       {/* Header skeleton */}
       <div className="flex items-center gap-4">
@@ -272,36 +322,37 @@ const LoadingHub = () => (
   </Card>
 )
 
+// Memoized components to prevent unnecessary re-renders
+const MemoizedAlertCard = memo(AlertCard)
+const MemoizedProgressItemCard = memo(ProgressItemCard)
+
 export function UnifiedProgressHub() {
   const { user } = useAuth()
-  const [progressData, setProgressData] = useState<UnifiedProgressData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
   })
 
-  useEffect(() => {
-    if (!user) return
-
-    const fetchProgressData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await dashboardOperations.getUnifiedProgressData(user.id)
-        setProgressData(data)
-      } catch (err) {
-        console.error('Error fetching progress data:', err)
-        setError('Unable to load progress data')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchProgressData()
+  // Cached progress data fetcher
+  const fetchProgressData = useCallback(async (): Promise<UnifiedProgressData> => {
+    if (!user) throw new Error('User not authenticated')
+    return await dashboardOperations.getUnifiedProgressData(user.id)
   }, [user])
+
+  // Use cached data with 3-minute cache for progress data
+  const { 
+    data: progressData, 
+    loading, 
+    error 
+  } = useCachedData(
+    ['unified-progress', user?.id],
+    fetchProgressData,
+    {
+      ttl: 180000, // 3 minutes - progress updates more frequently
+      enabled: !!user,
+      staleWhileRevalidate: true
+    }
+  )
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -331,7 +382,7 @@ export function UnifiedProgressHub() {
 
   if (error || !progressData) {
     return (
-      <Card variant="premium" className="p-8 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-destructive/20 shadow-2xl">
+      <Card variant="premium" className="p-6 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-destructive/20 shadow-2xl">
         <div className="text-center space-y-4">
           <div className="h-16 w-16 mx-auto rounded-2xl bg-destructive/10 flex items-center justify-center">
             <AlertCircle className="h-8 w-8 text-destructive" />
@@ -354,201 +405,139 @@ export function UnifiedProgressHub() {
       initial="hidden"
       animate={inView ? "visible" : "hidden"}
     >
-      <Card variant="premium" className="p-8 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-2xl">
-        <div className="space-y-8">
-          {/* Enhanced Header */}
-          <motion.div className="space-y-4" variants={childVariants}>
+      <Card variant="premium" className="p-4 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-xl">
+        <div className="space-y-3">
+          {/* Compact Header with inline metrics */}
+          <motion.div variants={childVariants}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <motion.div 
-                  className="relative h-14 w-14 rounded-2xl bg-gradient-to-br from-secondary/20 to-secondary/10 backdrop-blur-sm border border-secondary/20 flex items-center justify-center shadow-lg"
-                  whileHover={{ 
-                    scale: 1.05, 
-                    rotate: 5,
-                    boxShadow: "0 15px 30px -5px rgba(20, 184, 166, 0.3)"
-                  }}
+                  className="relative h-10 w-10 rounded-lg bg-gradient-to-br from-secondary/20 to-secondary/10 backdrop-blur-sm border border-secondary/20 flex items-center justify-center shadow-sm"
+                  whileHover={{ scale: 1.05 }}
                   transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 >
-                  <Target className="h-7 w-7 text-secondary" />
-                  
-                  {/* Background pulse animation */}
-                  <motion.div 
-                    className="absolute inset-0 rounded-2xl bg-secondary/10 opacity-0"
-                    animate={{
-                      opacity: [0, 0.3, 0],
-                      scale: [1, 1.2, 1]
-                    }}
-                    transition={{ 
-                      duration: 2,
-                      repeat: Infinity,
-                      repeatType: "loop"
-                    }}
-                  />
+                  <Target className="h-5 w-5 text-secondary" />
                 </motion.div>
                 
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/80 bg-clip-text text-transparent">
-                    Progress Hub
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <Flame className="h-4 w-4 text-secondary/70" />
-                    <span className="text-xs font-medium text-muted-foreground/70 tracking-wider uppercase">
-                      Budgets & Goals Tracking
-                    </span>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Progress Hub</h3>
+                  <p className="text-xs text-muted-foreground/70">Budgets & Goals Tracking</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                {/* Inline Summary Stats */}
+                <div className="hidden md:flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1">
+                    <span className="text-lg font-bold text-display">{summary.totalBudgets}</span>
+                    <span className="text-muted-foreground">budgets</span>
                   </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {alerts.length > 0 && (
-                  <Badge variant="destructive" className="flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {alerts.length} Alert{alerts.length > 1 ? 's' : ''}
-                  </Badge>
-                )}
-                
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-sm font-semibold backdrop-blur-sm bg-gradient-to-r from-secondary/10 to-primary/10 border-secondary/20 hover:border-secondary/30 shadow-md"
-                    asChild
-                  >
-                    <Link href="/dashboard/targets">
-                      <Eye className="h-4 w-4 mr-2" />
-                      View All
-                      <ChevronRight className="h-3 w-3 ml-1" />
-                    </Link>
-                  </Button>
-                </motion.div>
-              </div>
-            </div>
-
-            {/* Summary Stats */}
-            <motion.div 
-              className="grid grid-cols-2 md:grid-cols-4 gap-6"
-              variants={childVariants}
-            >
-              <div className="text-center space-y-2">
-                <p className="text-sm font-medium text-muted-foreground/80">Budgets</p>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-2xl font-bold text-display">{summary.totalBudgets}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {summary.budgetsOnTrack} on track
-                  </Badge>
-                </div>
-              </div>
-              
-              <div className="text-center space-y-2">
-                <p className="text-sm font-medium text-muted-foreground/80">Goals</p>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-2xl font-bold text-display">{summary.totalGoals}</span>
-                  <Badge variant="success" className="text-xs">
-                    {summary.achievedGoals} achieved
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="text-center space-y-2">
-                <p className="text-sm font-medium text-muted-foreground/80">Alerts</p>
-                <div className="flex items-center justify-center gap-2">
-                  <span className={`text-2xl font-bold ${alerts.length > 0 ? 'text-destructive' : 'text-success'}`}>
-                    {alerts.length}
-                  </span>
-                  {alerts.length === 0 && (
-                    <Badge variant="success" className="text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      All good
-                    </Badge>
+                  <div className="w-px h-4 bg-border/50"></div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-lg font-bold text-display">{summary.totalGoals}</span>
+                    <span className="text-muted-foreground">goals</span>
+                  </div>
+                  {alerts.length > 0 && (
+                    <>
+                      <div className="w-px h-4 bg-border/50"></div>
+                      <Badge variant="destructive" className="text-xs">
+                        {alerts.length} Alert{alerts.length > 1 ? 's' : ''}
+                      </Badge>
+                    </>
                   )}
                 </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  asChild
+                >
+                  <Link href="/dashboard/targets">
+                    View All
+                  </Link>
+                </Button>
               </div>
-
-              <div className="text-center space-y-2">
-                <p className="text-sm font-medium text-muted-foreground/80">Items</p>
-                <span className="text-2xl font-bold text-display">{progressItems.length}</span>
-              </div>
-            </motion.div>
+            </div>
           </motion.div>
 
-          {/* Alerts Section */}
+          {/* Priority Alerts - Compact inline */}
           <AnimatePresence>
             {alerts.length > 0 && (
               <motion.div 
-                className="space-y-4"
+                className="flex flex-wrap gap-2"
                 variants={childVariants}
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                  <h4 className="text-lg font-semibold text-foreground">Priority Alerts</h4>
-                </div>
-                
-                <div className="space-y-3">
-                  {alerts.map((alert, index) => (
-                    <AlertCard key={index} alert={alert} index={index} />
-                  ))}
-                </div>
+                {alerts.slice(0, 3).map((alert, index) => (
+                  <Link key={index} href={alert.href}>
+                    <Badge variant="destructive" className="text-xs cursor-pointer hover:bg-destructive/90">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      {alert.title}
+                    </Badge>
+                  </Link>
+                ))}
+                {alerts.length > 3 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{alerts.length - 3} more
+                  </Badge>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Progress Items */}
-          <motion.div className="space-y-4" variants={childVariants}>
-            <div className="flex items-center justify-between">
-              <h4 className="text-lg font-semibold text-foreground">Recent Progress</h4>
-              {progressItems.length > 6 && (
-                <Link href="/dashboard/targets">
-                  <Button variant="ghost" size="sm" className="text-sm text-muted-foreground hover:text-primary">
-                    View all {progressItems.length} items
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </Link>
-              )}
-            </div>
+          {/* Progress Items - Horizontal scroll on mobile, grid on desktop */}
+          {progressItems.length > 0 ? (
+            <motion.div className="space-y-2" variants={childVariants}>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground">Recent Progress</h4>
+                {progressItems.length > 4 && (
+                  <Link href="/dashboard/targets">
+                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-primary">
+                      View all {progressItems.length}
+                    </Button>
+                  </Link>
+                )}
+              </div>
 
-            {progressItems.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Compact progress items */}
+              <div className="flex md:grid md:grid-cols-2 gap-2 overflow-x-auto pb-2 md:pb-0 md:overflow-visible">
                 <AnimatePresence>
-                  {progressItems.slice(0, 6).map((item, index) => (
-                    <ProgressItemCard key={item.id} item={item} index={index} />
+                  {progressItems.slice(0, 4).map((item, index) => (
+                    <CompactProgressItem key={item.id} item={item} index={index} />
                   ))}
                 </AnimatePresence>
               </div>
-            ) : (
-              <motion.div 
-                className="text-center py-12 space-y-4"
-                variants={childVariants}
-              >
-                <div className="h-16 w-16 mx-auto rounded-2xl bg-muted/10 flex items-center justify-center">
-                  <Target className="h-8 w-8 text-muted-foreground/50" />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-muted-foreground font-medium">No active budgets or goals</p>
-                  <p className="text-sm text-muted-foreground/70">Create your first budget or saving goal to start tracking progress</p>
-                </div>
-                <div className="flex items-center justify-center gap-3 pt-4">
+            </motion.div>
+          ) : (
+            <motion.div 
+              className="text-center py-6 space-y-2"
+              variants={childVariants}
+            >
+              <div className="h-12 w-12 mx-auto rounded-lg bg-muted/10 flex items-center justify-center">
+                <Target className="h-6 w-6 text-muted-foreground/50" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground font-medium">No active budgets or goals</p>
+                <div className="flex items-center justify-center gap-2">
                   <Button asChild variant="outline" size="sm">
                     <Link href="/dashboard/targets">
-                      <Target className="h-4 w-4 mr-2" />
-                      Create Budget
+                      <Target className="h-3 w-3 mr-1" />
+                      Budget
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="sm">
                     <Link href="/dashboard/goals">
-                      <PiggyBank className="h-4 w-4 mr-2" />
-                      Create Goal
+                      <PiggyBank className="h-3 w-3 mr-1" />
+                      Goal
                     </Link>
                   </Button>
                 </div>
-              </motion.div>
-            )}
-          </motion.div>
+              </div>
+            </motion.div>
+          )}
         </div>
       </Card>
     </motion.div>

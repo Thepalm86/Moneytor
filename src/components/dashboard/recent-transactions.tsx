@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useMemo, memo } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
@@ -13,14 +13,13 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Calendar,
-  Filter,
   ExternalLink,
-  Sparkles,
   Eye,
   Clock
 } from 'lucide-react'
 import { transactionOperations } from '@/lib/supabase-helpers'
 import { useAuth } from '@/lib/auth-context'
+import { useCachedData } from '@/hooks/use-cached-data'
 
 interface Transaction {
   id: string
@@ -37,7 +36,7 @@ interface Transaction {
   tags: string[]
 }
 
-const formatCurrency = (amount: number) => `₪${Math.abs(amount).toLocaleString()}`
+const formatCurrency = (amount: number) => `${Math.abs(amount).toLocaleString()}₪`
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
@@ -64,7 +63,7 @@ const TransactionItem = ({ transaction, index }: { transaction: Transaction; ind
 
   return (
     <motion.div 
-      className="group relative p-4 rounded-2xl border border-border/30 backdrop-blur-sm hover:bg-gradient-to-r hover:from-primary/5 hover:to-secondary/5 hover:border-primary/20 transition-all duration-500 hover:shadow-lg"
+      className="group relative p-3 rounded-xl border border-border/30 backdrop-blur-sm hover:bg-gradient-to-r hover:from-primary/5 hover:to-secondary/5 hover:border-primary/20 transition-all duration-500 hover:shadow-lg"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
@@ -201,37 +200,37 @@ const LoadingTransactions = () => (
   </div>
 )
 
+// Memoized TransactionItem to prevent unnecessary re-renders
+const MemoizedTransactionItem = memo(TransactionItem)
+
 export function RecentTransactions() {
   const { user } = useAuth()
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 })
 
-  useEffect(() => {
-    if (!user) return
-
-    const fetchRecentTransactions = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const transactions = await transactionOperations.fetchRecent(user.id, 10)
-        setTransactions(transactions)
-      } catch (err) {
-        console.error('Error fetching recent transactions:', err)
-        setError('Failed to load recent transactions')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchRecentTransactions()
+  // Memoized fetcher function for cached data
+  const fetchRecentTransactions = useCallback(async (): Promise<Transaction[]> => {
+    if (!user) throw new Error('User not authenticated')
+    return await transactionOperations.fetchRecent(user.id, 10)
   }, [user])
+
+  // Use cached data with 2-minute cache for recent transactions
+  const { 
+    data: transactions = [], 
+    loading, 
+    error 
+  } = useCachedData(
+    ['recent-transactions', user?.id],
+    fetchRecentTransactions,
+    {
+      ttl: 120000, // 2 minutes - more frequent for recent data
+      enabled: !!user,
+      staleWhileRevalidate: true
+    }
+  )
 
   if (error) {
     return (
-      <Card variant="premium" className="p-8 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-destructive/20 shadow-2xl">
+      <Card variant="premium" className="p-6 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-destructive/20 shadow-2xl">
         <div className="text-center py-12 space-y-4">
           <div className="h-16 w-16 mx-auto rounded-2xl bg-destructive/10 flex items-center justify-center">
             <Receipt className="h-8 w-8 text-destructive" />
@@ -252,7 +251,7 @@ export function RecentTransactions() {
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
       transition={{ duration: 0.6, ease: [0.21, 0.47, 0.32, 0.98] }}
     >
-      <Card variant="premium" className="p-8 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-2xl hover:shadow-3xl transition-all duration-500 relative overflow-hidden">
+      <Card variant="premium" className="p-6 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-2xl hover:shadow-3xl transition-all duration-500 relative overflow-hidden">
         {/* Premium background effects */}
         <motion.div 
           className="absolute inset-0 bg-gradient-to-br from-secondary/5 via-transparent to-primary/5 opacity-0"
@@ -267,7 +266,7 @@ export function RecentTransactions() {
           }}
         />
         
-        <div className="relative z-10 space-y-8">
+        <div className="relative z-10 space-y-4">
           {/* Enhanced Header */}
           <motion.div 
             className="flex items-center justify-between"
@@ -275,103 +274,62 @@ export function RecentTransactions() {
             animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <motion.div 
-                className="relative h-14 w-14 rounded-2xl bg-gradient-to-br from-secondary/20 to-secondary/10 backdrop-blur-sm border border-secondary/20 flex items-center justify-center shadow-lg"
-                whileHover={{ 
-                  scale: 1.05, 
-                  rotate: 5,
-                  boxShadow: "0 15px 30px -5px rgba(168, 85, 247, 0.3)"
-                }}
+                className="relative h-10 w-10 rounded-lg bg-gradient-to-br from-secondary/20 to-secondary/10 backdrop-blur-sm border border-secondary/20 flex items-center justify-center shadow-sm"
+                whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
               >
-                <Receipt className="h-7 w-7 text-secondary" />
-                
-                {/* Background pulse animation */}
-                <motion.div 
-                  className="absolute inset-0 rounded-2xl bg-secondary/10 opacity-0"
-                  animate={{
-                    opacity: [0, 0.3, 0],
-                    scale: [1, 1.2, 1]
-                  }}
-                  transition={{ 
-                    duration: 2,
-                    repeat: Infinity,
-                    repeatType: "loop"
-                  }}
-                />
+                <Receipt className="h-5 w-5 text-secondary" />
               </motion.div>
               
-              <div className="space-y-1">
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/80 bg-clip-text text-transparent">
-                  Recent Transactions
-                </h3>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-secondary/70" />
-                  <span className="text-sm font-medium text-muted-foreground/70 tracking-wider uppercase">
-                    Latest Financial Activity
-                  </span>
-                </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Recent Transactions</h3>
+                <p className="text-xs text-muted-foreground/70">Latest Financial Activity</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <Badge variant="default" className="flex items-center gap-1 bg-gradient-to-r from-info/10 to-secondary/10 border-info/20">
-                <Eye className="h-3 w-3" />
-                {transactions.length} Items
+            <div className="flex items-center gap-2">
+              <Badge variant="default" className="text-xs bg-gradient-to-r from-info/10 to-secondary/10 border-info/20">
+                <Eye className="h-3 w-3 mr-1" />
+                {transactions?.length || 0} Items
               </Badge>
               
-              <div className="flex items-center gap-2">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="text-sm font-semibold backdrop-blur-sm shadow-md"
-                  >
-                    <Filter className="h-4 w-4 mr-1" />
-                    Filter
-                  </Button>
-                </motion.div>
-                
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link href="/transactions">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="text-sm font-semibold backdrop-blur-sm shadow-md hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10"
-                    >
-                      View All
-                      <ExternalLink className="h-4 w-4 ml-1" />
-                    </Button>
-                  </Link>
-                </motion.div>
-              </div>
+              <Link href="/transactions">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs"
+                >
+                  View All
+                </Button>
+              </Link>
             </div>
           </motion.div>
 
-          {/* Transactions List */}
+          {/* Compact Transactions List */}
           <motion.div 
-            className="space-y-4"
+            className="space-y-2"
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             {loading ? (
               <LoadingTransactions />
-            ) : transactions.length === 0 ? (
+            ) : !transactions || transactions.length === 0 ? (
               <motion.div 
-                className="text-center py-16 space-y-6"
+                className="text-center py-8 space-y-3"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
               >
-                <div className="h-20 w-20 mx-auto rounded-2xl bg-gradient-to-br from-muted/20 to-muted/10 flex items-center justify-center shadow-lg">
-                  <Receipt className="h-10 w-10 text-muted-foreground/50" />
+                <div className="h-12 w-12 mx-auto rounded-lg bg-gradient-to-br from-muted/20 to-muted/10 flex items-center justify-center">
+                  <Receipt className="h-6 w-6 text-muted-foreground/50" />
                 </div>
-                <div className="space-y-3">
-                  <p className="text-muted-foreground font-semibold text-lg">No transactions yet</p>
-                  <p className="text-sm text-muted-foreground/70 max-w-md mx-auto leading-relaxed">
-                    Start adding transactions to see them appear here and track your financial activity
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground font-medium">No transactions yet</p>
+                  <p className="text-xs text-muted-foreground/70">
+                    Start adding transactions to track your activity
                   </p>
                 </div>
                 <motion.div
@@ -388,37 +346,31 @@ export function RecentTransactions() {
               </motion.div>
             ) : (
               <AnimatePresence>
-                <div className="space-y-3">
-                  {transactions.map((transaction, index) => (
-                    <TransactionItem 
+                <div className="space-y-1">
+                  {(transactions || []).slice(0, 4).map((transaction, index) => (
+                    <MemoizedTransactionItem 
                       key={transaction.id} 
                       transaction={transaction} 
                       index={index}
                     />
                   ))}
                   
-                  {transactions.length >= 10 && (
+                  {(transactions?.length || 0) > 4 && (
                     <motion.div 
-                      className="pt-6"
-                      initial={{ opacity: 0, y: 20 }}
+                      className="pt-2 text-center"
+                      initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: transactions.length * 0.1 }}
+                      transition={{ duration: 0.4, delay: 0.3 }}
                     >
                       <Link href="/transactions">
-                        <motion.div
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-xs text-muted-foreground hover:text-primary"
                         >
-                          <Button 
-                            variant="outline" 
-                            className="w-full text-sm font-semibold backdrop-blur-sm bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20 hover:border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300"
-                            size="lg"
-                          >
-                            <span className="mr-2">📊</span>
-                            View All Transactions
-                            <ExternalLink className="h-4 w-4 ml-2" />
-                          </Button>
-                        </motion.div>
+                          View all {transactions?.length} transactions
+                          <ExternalLink className="h-4 w-4 ml-2" />
+                        </Button>
                       </Link>
                     </motion.div>
                   )}

@@ -58,7 +58,7 @@ interface TransactionListProps {
 }
 
 const formatCurrency = (amount: number) => {
-  return `₪${amount.toLocaleString()}`;
+  return `${amount.toLocaleString()}₪`;
 };
 
 const formatDate = (dateString: string) => {

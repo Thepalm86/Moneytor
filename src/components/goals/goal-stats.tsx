@@ -20,7 +20,7 @@ interface GoalStatsProps {
 }
 
 export function GoalStats({ stats }: GoalStatsProps) {
-  const formatCurrency = (amount: number) => `₪${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number) => `${amount.toLocaleString()}₪`;
 
   const getStatusColor = (status: string) => {
     switch (status) {

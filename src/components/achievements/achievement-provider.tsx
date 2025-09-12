@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { AchievementNotification, AchievementToast } from './achievement-notification';
+import { useCelebration } from '@/components/celebrations';
 
 interface AchievementData {
   id: string;
@@ -25,6 +26,7 @@ interface AchievementProviderProps {
 }
 
 export function AchievementProvider({ children }: AchievementProviderProps) {
+  const { triggerCelebration } = useCelebration();
   const [currentAchievement, setCurrentAchievement] = useState<AchievementData | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [toastAchievement, setToastAchievement] = useState<AchievementData | null>(null);
@@ -34,18 +36,45 @@ export function AchievementProvider({ children }: AchievementProviderProps) {
     if (style === 'modal') {
       setCurrentAchievement(achievement);
       setShowModal(true);
+      
+      // Trigger intense celebration for modal achievements
+      triggerCelebration({
+        type: 'achievement',
+        duration: 4000,
+        message: `Achievement Unlocked: ${achievement.name}!`,
+        intensity: 'high'
+      });
     } else {
       setToastAchievement(achievement);
+      
+      // Trigger subtle celebration for toast achievements
+      triggerCelebration({
+        type: 'sparkles',
+        duration: 2500,
+        message: `+${achievement.points} points earned!`,
+        intensity: 'low'
+      });
       
       // Auto-hide toast after 5 seconds
       setTimeout(() => {
         setToastAchievement(null);
       }, 5000);
     }
-  }, []);
+  }, [triggerCelebration]);
 
   const queueAchievements = useCallback((achievements: AchievementData[]) => {
     if (achievements.length === 0) return;
+    
+    // Special celebration for multiple achievements
+    if (achievements.length > 1) {
+      const totalPoints = achievements.reduce((sum, a) => sum + a.points, 0);
+      triggerCelebration({
+        type: 'fireworks',
+        duration: 5000,
+        message: `${achievements.length} Achievements Unlocked! +${totalPoints} points!`,
+        intensity: 'high'
+      });
+    }
     
     // Show first achievement immediately
     showAchievement(achievements[0], 'modal');
@@ -54,7 +83,7 @@ export function AchievementProvider({ children }: AchievementProviderProps) {
     if (achievements.length > 1) {
       setAchievementQueue(achievements.slice(1));
     }
-  }, [showAchievement]);
+  }, [showAchievement, triggerCelebration]);
 
   const handleCloseModal = useCallback(() => {
     setShowModal(false);

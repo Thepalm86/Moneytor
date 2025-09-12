@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useMemo, memo } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { dashboardOperations } from '@/lib/supabase-helpers'
 import { useAuth } from '@/lib/auth-context'
+import { useCachedData } from '@/hooks/use-cached-data'
 
 interface SmartAction {
   id: string
@@ -171,7 +172,7 @@ const SmartQuickAction = ({ title, description, href, icon, color, priority, ind
             
             <div className="flex-1 space-y-2">
               <motion.h4 
-                className="text-lg font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/80 bg-clip-text text-transparent group-hover:from-primary group-hover:via-primary/90 group-hover:to-primary/80"
+                className="text-lg font-bold text-foreground group-hover:text-primary"
                 transition={{ duration: 0.3 }}
               >
                 {title}
@@ -247,65 +248,75 @@ const LoadingSkeleton = () => (
   </Card>
 )
 
+// Memoized SmartQuickAction to prevent unnecessary re-renders
+const MemoizedSmartQuickAction = memo(SmartQuickAction)
+
 export function SmartQuickActions() {
   const { user } = useAuth()
-  const [actions, setActions] = useState<SmartAction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
   })
 
-  useEffect(() => {
-    if (!user) return
-
-    const fetchSmartActions = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const smartActions = await dashboardOperations.getSmartActionRecommendations(user.id)
-        setActions(smartActions)
-      } catch (err) {
-        console.error('Error fetching smart actions:', err)
-        setError('Unable to load recommendations')
-        // Fallback to static actions
-        setActions([
-          {
-            id: 'add-transaction',
-            title: 'Add Transaction',
-            description: 'Record a new income or expense',
-            href: '/dashboard/transactions?action=add',
-            icon: 'Plus',
-            priority: 'high',
-            color: {
-              bg: 'bg-primary/10',
-              icon: 'text-primary',
-              hover: 'bg-primary/5'
-            }
-          },
-          {
-            id: 'view-reports',
-            title: 'View Reports',
-            description: 'Analyze your financial trends',
-            href: '/dashboard/reports',
-            icon: 'BarChart3',
-            priority: 'medium',
-            color: {
-              bg: 'bg-success/10',
-              icon: 'text-success',
-              hover: 'bg-success/5'
-            }
-          }
-        ])
-      } finally {
-        setLoading(false)
+  // Static fallback actions
+  const fallbackActions = useMemo(() => [
+    {
+      id: 'add-transaction',
+      title: 'Add Transaction',
+      description: 'Record a new income or expense',
+      href: '/dashboard/transactions?action=add',
+      icon: 'Plus',
+      priority: 'high' as const,
+      color: {
+        bg: 'bg-primary/10',
+        icon: 'text-primary',
+        hover: 'bg-primary/5'
+      }
+    },
+    {
+      id: 'view-reports',
+      title: 'View Reports',
+      description: 'Analyze your financial trends',
+      href: '/dashboard/reports',
+      icon: 'BarChart3',
+      priority: 'medium' as const,
+      color: {
+        bg: 'bg-success/10',
+        icon: 'text-success',
+        hover: 'bg-success/5'
       }
     }
+  ], [])
 
-    fetchSmartActions()
-  }, [user])
+  // Cached smart actions fetcher with fallback
+  const fetchSmartActions = useCallback(async (): Promise<SmartAction[]> => {
+    if (!user) throw new Error('User not authenticated')
+    
+    try {
+      return await dashboardOperations.getSmartActionRecommendations(user.id)
+    } catch (err) {
+      console.error('Error fetching smart actions, using fallback:', err)
+      return fallbackActions
+    }
+  }, [user, fallbackActions])
+
+  // Use cached data with 10-minute cache for smart actions
+  const { 
+    data: actions = [], 
+    loading, 
+    error 
+  } = useCachedData(
+    ['smart-actions', user?.id],
+    fetchSmartActions,
+    {
+      ttl: 600000, // 10 minutes - recommendations change less frequently
+      enabled: !!user,
+      staleWhileRevalidate: true,
+      onError: () => {
+        // Fallback is handled in the fetcher function
+      }
+    }
+  )
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -388,16 +399,9 @@ export function SmartQuickActions() {
                   />
                 </motion.div>
                 
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/80 bg-clip-text text-transparent">
-                    Smart Actions
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary/70" />
-                    <span className="text-xs font-medium text-muted-foreground/70 tracking-wider uppercase">
-                      AI-Powered Recommendations
-                    </span>
-                  </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Smart Actions</h3>
+                  <p className="text-xs text-muted-foreground/70">AI-Powered Recommendations</p>
                 </div>
               </div>
 
@@ -427,7 +431,7 @@ export function SmartQuickActions() {
           >
             <AnimatePresence>
               {actions.map((action, index) => (
-                <SmartQuickAction
+                <MemoizedSmartQuickAction
                   key={action.id}
                   {...action}
                   index={index}

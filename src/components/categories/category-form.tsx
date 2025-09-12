@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { categoryOperations, handleSupabaseError } from '@/lib/supabase-helpers';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useCelebration } from '@/components/celebrations';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -88,6 +89,7 @@ const CATEGORY_ICONS = [
 
 export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps) {
   const { user } = useAuth();
+  const { triggerCelebration } = useCelebration();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -126,6 +128,13 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
           is_active: formData.is_active,
           updated_at: new Date().toISOString()
         });
+        
+        // Trigger subtle celebration for updates
+        triggerCelebration({
+          type: 'gentle-pop',
+          duration: 2000,
+          message: `${formData.name} updated successfully!`
+        });
       } else {
         // Create new category
         await categoryOperations.create({
@@ -135,6 +144,14 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
           color: formData.color,
           icon: formData.icon,
           is_active: formData.is_active
+        });
+        
+        // Trigger celebration for new category creation
+        triggerCelebration({
+          type: 'success',
+          duration: 3000,
+          message: `New ${formData.type} category "${formData.name}" created!`,
+          intensity: 'medium'
         });
       }
 
@@ -155,141 +172,154 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-white/80 backdrop-blur-xl border-white/20 shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+      <DialogContent className="sm:max-w-lg bg-gradient-to-br from-white via-purple-50 to-pink-50/20 backdrop-blur-xl border border-white/20 shadow-2xl">
+        <DialogHeader className="border-b border-purple-200/20 bg-gradient-to-r from-transparent to-purple-50/20">
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
+              <Wallet className="h-5 w-5 text-white" />
+            </div>
             {category ? 'Edit Category' : 'Create Category'}
           </DialogTitle>
+          <p className="text-sm text-slate-600 mt-1">
+            {category ? 'Update your category details' : 'Organize your transactions with custom categories'}
+          </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Category Name */}
-          <div className="space-y-2">
-            <Label htmlFor="name">Category Name</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Enter category name..."
-              required
-              className="bg-white/50 border-white/20 focus:bg-white/70"
-            />
-          </div>
-
-          {/* Category Type */}
-          <div className="space-y-2">
-            <Label htmlFor="type">Category Type</Label>
-            <Select 
-              value={formData.type} 
-              onValueChange={(value: 'income' | 'expense') => 
-                setFormData({ ...formData, type: value })
-              }
-            >
-              <SelectTrigger className="bg-white/50 border-white/20 focus:bg-white/70">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white/90 backdrop-blur-xl border-white/20">
-                <SelectItem value="expense">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    Expense
-                  </div>
-                </SelectItem>
-                <SelectItem value="income">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    Income
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Color Selection */}
-          <div className="space-y-3">
-            <Label>Category Color</Label>
-            <div className="grid grid-cols-9 gap-2">
-              {CATEGORY_COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, color: color.value })}
-                  className={`w-8 h-8 rounded-full ${color.bg} hover:scale-110 transition-transform relative`}
-                  title={color.name}
-                >
-                  {formData.color === color.value && (
-                    <Check className="w-4 h-4 text-white absolute inset-0 m-auto" />
-                  )}
-                </button>
-              ))}
+        <DialogBody>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Category Name */}
+            <div className="space-y-2">
+              <Label htmlFor="name" className="font-medium text-slate-700">Category Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter category name..."
+                required
+                className="bg-white/70 border-slate-200/50 hover:bg-white/80 transition-colors shadow-sm"
+              />
             </div>
-          </div>
 
-          {/* Icon Selection */}
-          <div className="space-y-3">
-            <Label>Category Icon</Label>
-            <div className="grid grid-cols-5 gap-2">
-              {CATEGORY_ICONS.map((iconData) => {
-                const Icon = iconData.icon;
-                return (
-                  <button
-                    key={iconData.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, icon: iconData.value })}
-                    className={`p-3 rounded-lg border-2 transition-all hover:scale-105 ${
-                      formData.icon === iconData.value
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-gray-200 bg-white/50 hover:border-gray-300'
-                    }`}
-                    title={iconData.name}
-                  >
-                    <Icon className="w-5 h-5 mx-auto" />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Preview */}
-          <div className="space-y-2">
-            <Label>Preview</Label>
-            <div className="flex items-center gap-3 p-3 bg-white/50 rounded-lg border border-white/20">
-              <div 
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: formData.color }}
+            {/* Category Type */}
+            <div className="space-y-2">
+              <Label htmlFor="type" className="font-medium text-slate-700">Category Type</Label>
+              <Select 
+                value={formData.type} 
+                onValueChange={(value: 'income' | 'expense') => 
+                  setFormData({ ...formData, type: value })
+                }
               >
-                <IconComponent className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <div className="font-medium">{formData.name || 'Category Name'}</div>
-                <Badge variant={formData.type === 'income' ? 'default' : 'destructive'} className="text-xs">
-                  {formData.type}
-                </Badge>
+                <SelectTrigger className="bg-white/70 border-slate-200/50 hover:bg-white/80 transition-colors shadow-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white/95 backdrop-blur-xl border-white/20 shadow-xl">
+                  <SelectItem value="expense">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                      Expense
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="income">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      Income
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Color Selection */}
+            <div className="space-y-3">
+              <Label className="font-medium text-slate-700">Category Color</Label>
+              <div className="grid grid-cols-9 gap-2">
+                {CATEGORY_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, color: color.value })}
+                    className={`w-8 h-8 rounded-full ${color.bg} hover:scale-110 transition-transform relative shadow-lg border-2 ${
+                      formData.color === color.value ? 'border-slate-800 ring-2 ring-slate-300' : 'border-white'
+                    }`}
+                    title={color.name}
+                  >
+                    {formData.color === color.value && (
+                      <Check className="w-4 h-4 text-white absolute inset-0 m-auto drop-shadow-lg" />
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Form Actions */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="flex-1 border-gray-300 hover:bg-gray-50"
-            >
-              <X className="w-4 h-4 mr-2" />
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading || !formData.name.trim()}
-              className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-            >
-              <Check className="w-4 h-4 mr-2" />
-              {loading ? 'Saving...' : category ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </form>
+            {/* Icon Selection */}
+            <div className="space-y-3">
+              <Label className="font-medium text-slate-700">Category Icon</Label>
+              <div className="grid grid-cols-5 gap-2">
+                {CATEGORY_ICONS.map((iconData) => {
+                  const Icon = iconData.icon;
+                  return (
+                    <button
+                      key={iconData.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, icon: iconData.value })}
+                      className={`p-3 rounded-lg border-2 transition-all hover:scale-105 shadow-sm ${
+                        formData.icon === iconData.value
+                          ? 'border-purple-500 bg-purple-50 shadow-md'
+                          : 'border-slate-200 bg-white/70 hover:border-slate-300 hover:bg-white/80'
+                      }`}
+                      title={iconData.name}
+                    >
+                      <Icon className="w-5 h-5 mx-auto text-slate-600" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div className="space-y-3">
+              <Label className="font-medium text-slate-700">Preview</Label>
+              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-white/70 to-slate-50/50 rounded-lg border border-slate-200/50 shadow-sm">
+                <div 
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
+                  style={{ backgroundColor: formData.color }}
+                >
+                  <IconComponent className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-800">{formData.name || 'Category Name'}</div>
+                  <Badge 
+                    variant={formData.type === 'income' ? 'default' : 'destructive'} 
+                    className="text-xs mt-1"
+                  >
+                    {formData.type}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </form>
+        </DialogBody>
+
+        <DialogFooter className="bg-gradient-to-r from-transparent to-purple-50/20">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="flex-1 bg-white/70 hover:bg-white/80 border-slate-200/50"
+          >
+            <X className="w-4 h-4 mr-2" />
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            onClick={handleSubmit}
+            disabled={loading || !formData.name.trim()}
+            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg"
+          >
+            <Check className="w-4 h-4 mr-2" />
+            {loading ? 'Saving...' : category ? 'Update' : 'Create'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

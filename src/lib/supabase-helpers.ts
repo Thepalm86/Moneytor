@@ -334,7 +334,7 @@ export const dashboardOperations = {
               severity: status === 'danger' ? 'high' : 'medium',
               title: `Budget Alert: ${target.name}`,
               message: status === 'danger' 
-                ? `Over budget by ₪${(spent - Number(target.target_amount)).toLocaleString()}`
+                ? `Over budget by ${(spent - Number(target.target_amount)).toLocaleString()}₪`
                 : `${Math.round(percentage)}% of budget used`,
               action: 'Review spending',
               href: '/dashboard/targets'
@@ -471,7 +471,7 @@ export const dashboardOperations = {
           insights.push({
             type: 'info',
             title: 'Top Spending Category',
-            message: `${category?.name || 'Uncategorized'}: ₪${topCategory[1].toLocaleString()}`,
+            message: `${category?.name || 'Uncategorized'}: ${topCategory[1].toLocaleString()}₪`,
             action: 'Analyze category',
             icon: 'PieChart'
           })

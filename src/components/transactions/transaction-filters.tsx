@@ -443,7 +443,7 @@ export function TransactionFilters({ filters, onFiltersChange, totalCount, filte
             )}
             {(filters.minAmount || filters.maxAmount) && (
               <Badge variant="outline">
-                Amount: {filters.minAmount && `₪${filters.minAmount}`} - {filters.maxAmount ? `₪${filters.maxAmount}` : '∞'}
+                Amount: {filters.minAmount && `${filters.minAmount}₪`} - {filters.maxAmount ? `${filters.maxAmount}₪` : '∞'}
               </Badge>
             )}
             {filters.tags.length > 0 && (

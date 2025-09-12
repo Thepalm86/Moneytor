@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
 import { Card } from '@/components/ui/card'
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { dashboardOperations } from '@/lib/supabase-helpers'
 import { useAuth } from '@/lib/auth-context'
+import { useCachedData } from '@/hooks/use-cached-data'
 
 interface HealthScore {
   score: number
@@ -251,29 +252,27 @@ const LoadingHealthScore = () => (
 
 export function FinancialHealthScore() {
   const { user } = useAuth()
-  const [healthData, setHealthData] = useState<HealthScore | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!user) return
-
-    const fetchHealthScore = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await dashboardOperations.calculateFinancialHealthScore(user.id)
-        setHealthData(data)
-      } catch (err) {
-        console.error('Error fetching health score:', err)
-        setError('Unable to calculate health score')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchHealthScore()
+  // Cached health score fetcher
+  const fetchHealthScore = useCallback(async (): Promise<HealthScore> => {
+    if (!user) throw new Error('User not authenticated')
+    return await dashboardOperations.calculateFinancialHealthScore(user.id)
   }, [user])
+
+  // Use cached data with 30-minute cache for health score
+  const { 
+    data: healthData, 
+    loading, 
+    error 
+  } = useCachedData(
+    ['financial-health-score', user?.id],
+    fetchHealthScore,
+    {
+      ttl: 1800000, // 30 minutes - health score changes slowly
+      enabled: !!user,
+      staleWhileRevalidate: true
+    }
+  )
 
   if (loading) {
     return <LoadingHealthScore />

@@ -53,11 +53,11 @@ export function EnhancedBarChart({
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {
-      return `₪${(amount / 1000000).toFixed(1)}M`;
+      return `${(amount / 1000000).toFixed(1)}M₪`;
     } else if (amount >= 1000) {
-      return `₪${(amount / 1000).toFixed(0)}k`;
+      return `${(amount / 1000).toFixed(0)}k₪`;
     }
-    return `₪${amount.toFixed(0)}`;
+    return `${amount.toFixed(0)}₪`;
   };
 
   // Handle bar click with drill-down capability
@@ -379,7 +379,7 @@ export function EnhancedBarChart({
           <div>
             <div className="text-display text-lg font-bold text-yellow-600">
               {Math.max(...data.map(item => item.amount)) > 0 ? 
-                formatCurrency(Math.max(...data.map(item => item.amount))) : '₪0'
+                formatCurrency(Math.max(...data.map(item => item.amount))) : '0₪'
               }
             </div>
             <div className="text-body-premium text-xs text-muted-foreground">

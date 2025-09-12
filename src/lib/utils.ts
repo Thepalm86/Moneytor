@@ -6,12 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, currency: string = '₪') {
-  return new Intl.NumberFormat('he-IL', {
-    style: 'currency',
-    currency: 'ILS',
+  // For Hebrew locale, the shekel symbol should be after the number
+  const formatted = new Intl.NumberFormat('he-IL', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(amount).replace('ILS', currency)
+  }).format(Math.abs(amount))
+  return `${formatted}${currency}`
 }
 
 export function formatDate(date: Date | string) {

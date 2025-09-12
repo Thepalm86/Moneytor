@@ -105,7 +105,7 @@ export const exportChartAsPDF = async (
       
       if (chartData.metadata.totalAmount !== undefined) {
         const currency = chartData.metadata.currency || '₪';
-        pdf.text(`Total Amount: ${currency}${chartData.metadata.totalAmount.toLocaleString()}`, 20, yPos);
+        pdf.text(`Total Amount: ${chartData.metadata.totalAmount.toLocaleString()}${currency}`, 20, yPos);
         yPos += 7;
       }
     }
@@ -141,7 +141,7 @@ export const exportChartAsPDF = async (
         headers.forEach(header => {
           const value = row[header];
           const displayValue = typeof value === 'number' ? 
-            (header.includes('amount') ? `₪${value.toLocaleString()}` : value.toString()) :
+            (header.includes('amount') ? `${value.toLocaleString()}₪` : value.toString()) :
             value?.toString() || '';
           
           pdf.text(displayValue.substring(0, 15), xPos, tableY);

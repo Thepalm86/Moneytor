@@ -324,8 +324,19 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-inter;
-    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    @apply bg-background text-foreground font-sans;
+    /* Premium Inter font features for exceptional readability */
+    font-feature-settings: "cv01" on, "cv02" on, "cv03" on, "cv04" on, "cv05" on, "cv06" on, "kern" on, "liga" on, "calt" on, "ss01" on, "ss02" on, "tnum" on;
+    font-variation-settings: "wght" 400, "opsz" 16;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-kerning: auto;
+    font-variant-ligatures: common-ligatures contextual;
+    font-synthesis: none;
+    letter-spacing: -0.013em;
+    line-height: 1.65;
+    font-weight: 400;
   }
 }
 
@@ -941,40 +952,278 @@
     background: var(--gradient-surface);
   }
 
-  /* 📝 LUXURY TYPOGRAPHY SYSTEM */
-  .text-luxury {
-    font-feature-settings: "cv01", "cv02", "cv03", "cv04", "cv05", "cv06";
-    letter-spacing: -0.02em;
-    font-variation-settings: "wght" 400, "opsz" 14;
+  /* 📋 MODAL SCROLLBAR SYSTEM - VISIBLE AND FUNCTIONAL */
+  .modal-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
 
-  .text-display {
-    @apply text-luxury font-bold tracking-tight;
-    line-height: 1.15;
-    font-variation-settings: "wght" 700, "opsz" 32;
+  .modal-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.3);
+    border-radius: 4px;
+    margin: 2px;
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.4);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    border: 1px solid hsl(var(--background));
+    background-clip: content-box;
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.6);
+    transform: scale(1.1);
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-thumb:active {
+    background: hsl(var(--primary) / 0.8);
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Firefox scrollbar styling */
+  .modal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.4) hsl(var(--muted) / 0.3);
+  }
+
+  /* 🎨 PREMIUM INTER TYPOGRAPHY SYSTEM - ELEGANT & MODERN */
+  
+  /* ✨ BASE PREMIUM INTER FONT */
+  .font-premium {
+    font-family: var(--font-inter);
+    font-feature-settings: "cv01" on, "cv02" on, "cv03" on, "cv04" on, "cv05" on, "cv06" on, "kern" on, "liga" on, "calt" on, "ss01" on, "ss02" on, "tnum" on;
     text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-kerning: auto;
+    font-variant-ligatures: common-ligatures contextual;
   }
 
-  .text-display-large {
-    @apply text-luxury font-extrabold tracking-tighter;
+  /* 👑 ELEGANT DISPLAY TYPOGRAPHY - ALL INTER */
+  .text-display-xl {
+    @apply font-premium font-black tracking-tight;
+    font-size: clamp(3rem, 6vw, 5rem);
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    font-weight: 900;
+  }
+
+  .text-display-lg {
+    @apply font-premium font-bold tracking-tight;
+    font-size: clamp(2.25rem, 4vw, 3.5rem);
+    line-height: 1.02;
+    letter-spacing: -0.032em;
+    font-weight: 700;
+  }
+
+  .text-display-md {
+    @apply font-premium font-semibold tracking-tight;
+    font-size: clamp(1.875rem, 3vw, 2.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+  }
+
+  .text-display-sm {
+    @apply font-premium font-medium tracking-tight;
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+  }
+
+  /* 📰 PREMIUM HEADLINE TYPOGRAPHY */
+  .text-headline-1 {
+    @apply font-premium font-bold tracking-tight;
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
     line-height: 1.1;
-    font-variation-settings: "wght" 800, "opsz" 48;
-    font-size: clamp(2.5rem, 5vw, 4rem);
+    letter-spacing: -0.022em;
+    font-weight: 700;
   }
 
-  .text-body-luxury {
-    @apply text-luxury;
+  .text-headline-2 {
+    @apply font-premium font-semibold tracking-tight;
+    font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+    line-height: 1.15;
+    letter-spacing: -0.018em;
+    font-weight: 600;
+  }
+
+  .text-headline-3 {
+    @apply font-premium font-medium tracking-tight;
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    font-weight: 500;
+  }
+
+  /* 📖 ELEGANT BODY TYPOGRAPHY */
+  .text-body-xl {
+    @apply font-premium;
+    font-size: 1.25rem;
+    line-height: 1.6;
+    letter-spacing: -0.013em;
+    font-weight: 400;
+    color: hsl(var(--foreground) / 0.9);
+  }
+
+  .text-body-lg {
+    @apply font-premium;
+    font-size: 1.125rem;
     line-height: 1.65;
-    color: hsl(var(--foreground) / 0.85);
-    font-variation-settings: "wght" 450, "opsz" 16;
+    letter-spacing: -0.012em;
+    font-weight: 400;
+    color: hsl(var(--foreground) / 0.87);
   }
 
-  .text-caption-luxury {
-    @apply text-luxury text-sm;
-    line-height: 1.5;
+  .text-body {
+    @apply font-premium;
+    font-size: 1rem;
+    line-height: 1.65;
+    letter-spacing: -0.011em;
+    font-weight: 400;
+    color: hsl(var(--foreground) / 0.85);
+  }
+
+  .text-body-sm {
+    @apply font-premium;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    letter-spacing: -0.008em;
+    font-weight: 400;
+    color: hsl(var(--foreground) / 0.8);
+  }
+
+  /* 🏷️ PREMIUM LABELS & CAPTIONS */
+  .text-label-lg {
+    @apply font-premium font-medium;
+    font-size: 1rem;
+    line-height: 1.4;
+    letter-spacing: -0.008em;
+    font-weight: 500;
+    color: hsl(var(--foreground) / 0.9);
+  }
+
+  .text-label {
+    @apply font-premium font-medium;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    letter-spacing: -0.006em;
+    font-weight: 500;
+    color: hsl(var(--foreground) / 0.85);
+  }
+
+  .text-label-sm {
+    @apply font-premium font-medium;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    letter-spacing: -0.003em;
+    font-weight: 500;
     color: hsl(var(--foreground-muted));
-    font-variation-settings: "wght" 500, "opsz" 12;
-    letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+
+  .text-caption {
+    @apply font-premium;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    letter-spacing: 0.002em;
+    font-weight: 400;
+    color: hsl(var(--foreground-subtle));
+  }
+
+  /* 💰 FINANCIAL NUMBERS - ELEGANT INTER MONO VARIANT */
+  .text-financial {
+    @apply font-premium font-semibold;
+    font-variant-numeric: tabular-nums slashed-zero;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+    font-feature-settings: "cv01" on, "cv02" on, "cv03" on, "cv04" on, "cv05" on, "cv06" on, "kern" on, "liga" on, "calt" on, "tnum" on, "zero" on;
+  }
+
+  .text-financial-lg {
+    @apply text-financial;
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  .text-financial-md {
+    @apply text-financial;
+    font-size: 1.25rem;
+    line-height: 1.25;
+  }
+
+  .text-financial-sm {
+    @apply text-financial;
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  /* 🎯 SEMANTIC HEADING STYLES - ALL INTER */
+  h1 {
+    @apply text-display-lg;
+  }
+
+  h2 {
+    @apply text-display-md;
+  }
+
+  h3 {
+    @apply text-headline-1;
+  }
+
+  h4 {
+    @apply text-headline-2;
+  }
+
+  h5 {
+    @apply text-headline-3;
+  }
+
+  h6 {
+    @apply text-label-lg;
+  }
+
+  /* 📝 SEMANTIC CONTENT STYLES */
+  p {
+    @apply text-body;
+  }
+
+  /* 🔘 PREMIUM INTERACTIVE ELEMENTS */
+  button, .btn {
+    @apply font-premium font-medium;
+    font-feature-settings: "kern" on, "liga" on, "calt" on;
+    letter-spacing: -0.008em;
+    text-rendering: optimizeLegibility;
+    font-weight: 500;
+  }
+
+  /* 📝 PREMIUM FORM ELEMENTS */
+  input, textarea, select {
+    @apply font-premium;
+    font-feature-settings: "kern" on, "liga" on, "calt" on, "tnum" on;
+    letter-spacing: -0.006em;
+    font-weight: 400;
+  }
+
+  /* 🏆 PREMIUM BRAND TYPOGRAPHY - INTER BASED */
+  .text-brand {
+    @apply font-premium font-bold;
+    font-size: 1.875rem;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    background: var(--gradient-primary);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: luxury-gradient 4s ease-in-out infinite;
   }
 
   /* 🚀 LUXURY MICRO-INTERACTIONS */
@@ -1121,13 +1370,245 @@
     }
   }
 
+  /* 🎉 CELEBRATION ANIMATIONS */
+  .animate-celebration-bounce {
+    animation: celebration-bounce 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .animate-celebration-pulse {
+    animation: celebration-pulse 1.5s ease-in-out infinite;
+  }
+
+  .animate-celebration-sparkle {
+    animation: celebration-sparkle 1.2s ease-out;
+  }
+
+  .animate-celebration-pop {
+    animation: celebration-pop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-slide-in-from-right-full {
+    animation: slide-in-from-right-full 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-shrink-width {
+    animation: shrink-width 4s linear forwards;
+  }
+
+  .animate-confetti-fall {
+    animation: confetti-fall 3s ease-out forwards;
+  }
+
+  @keyframes celebration-bounce {
+    0% {
+      opacity: 0;
+      transform: scale(0.3) translateY(-50px);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.1) translateY(-10px);
+    }
+    70% {
+      transform: scale(0.95) translateY(5px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes celebration-pulse {
+    0%, 100% {
+      transform: scale(1);
+      filter: brightness(1);
+    }
+    50% {
+      transform: scale(1.05);
+      filter: brightness(1.1);
+    }
+  }
+
+  @keyframes celebration-sparkle {
+    0% {
+      opacity: 0;
+      transform: scale(0) rotate(0deg);
+    }
+    25% {
+      opacity: 1;
+      transform: scale(1.2) rotate(90deg);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1) rotate(180deg);
+    }
+    75% {
+      opacity: 0.8;
+      transform: scale(1.1) rotate(270deg);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0) rotate(360deg);
+    }
+  }
+
+  @keyframes celebration-pop {
+    0% {
+      opacity: 0;
+      transform: scale(0.8) translateY(10px);
+    }
+    60% {
+      opacity: 1;
+      transform: scale(1.08) translateY(-5px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-in-from-right-full {
+    0% {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes shrink-width {
+    0% {
+      width: 100%;
+    }
+    100% {
+      width: 0%;
+    }
+  }
+
+  @keyframes confetti-fall {
+    0% {
+      opacity: 1;
+      transform: translateY(-20px) rotate(0deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(100vh) rotate(720deg);
+    }
+  }
+
+  /* Modal Animation Keyframes */
+  @keyframes modal-slide-in-from-bottom {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -45%) scale(0.96);
+    }
+    100% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  @keyframes modal-slide-out-to-bottom {
+    0% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -45%) scale(0.96);
+    }
+  }
+
+  /* Modal specific animations */
+  .modal-enter {
+    animation: modal-slide-in-from-bottom 0.2s ease-out;
+  }
+
+  .modal-exit {
+    animation: modal-slide-out-to-bottom 0.15s ease-in;
+  }
+
+  /* Celebration glow effects */
+  .celebration-glow {
+    box-shadow: 
+      0 0 20px hsla(var(--primary), 0.4),
+      0 0 40px hsla(var(--primary), 0.2),
+      0 0 60px hsla(var(--primary), 0.1);
+    filter: brightness(1.1);
+  }
+
+  .celebration-glow-success {
+    box-shadow: 
+      0 0 20px hsla(var(--success), 0.4),
+      0 0 40px hsla(var(--success), 0.2),
+      0 0 60px hsla(var(--success), 0.1);
+    filter: brightness(1.1);
+  }
+
+  .celebration-glow-warning {
+    box-shadow: 
+      0 0 20px hsla(var(--warning), 0.4),
+      0 0 40px hsla(var(--warning), 0.2),
+      0 0 60px hsla(var(--warning), 0.1);
+    filter: brightness(1.1);
+  }
+
+  /* Premium button animation for celebrations */
+  .premium-button {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    background: var(--gradient-primary);
+    border: none;
+  }
+
+  .premium-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  .premium-button:hover::before {
+    left: 100%;
+  }
+
+  .premium-button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+  }
+
   /* Reduced motion preferences */
   @media (prefers-reduced-motion: reduce) {
     .animate-in,
     .animate-out,
     .animate-scale-in,
     .animate-slide-up,
-    .animate-float {
+    .animate-float,
+    .animate-celebration-bounce,
+    .animate-celebration-pulse,
+    .animate-celebration-sparkle,
+    .animate-celebration-pop {
       animation: none;
     }
 

@@ -57,11 +57,11 @@ export function EnhancedLineChart({
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {
-      return `₪${(amount / 1000000).toFixed(1)}M`;
+      return `${(amount / 1000000).toFixed(1)}M₪`;
     } else if (amount >= 1000) {
-      return `₪${(amount / 1000).toFixed(0)}k`;
+      return `${(amount / 1000).toFixed(0)}k₪`;
     }
-    return `₪${amount.toFixed(0)}`;
+    return `${amount.toFixed(0)}₪`;
   };
 
   // Calculate trend line data
@@ -452,7 +452,7 @@ export function EnhancedLineChart({
           <div>
             <div className="text-display text-lg font-bold text-green-600">
               {Math.max(...data.map(item => item.value)) > 0 ? 
-                formatCurrency(Math.max(...data.map(item => item.value))) : '₪0'
+                formatCurrency(Math.max(...data.map(item => item.value))) : '0₪'
               }
             </div>
             <div className="text-body-premium text-xs text-muted-foreground">
@@ -463,7 +463,7 @@ export function EnhancedLineChart({
           <div>
             <div className="text-display text-lg font-bold text-red-600">
               {Math.min(...data.map(item => item.value)) < Infinity ? 
-                formatCurrency(Math.min(...data.map(item => item.value))) : '₪0'
+                formatCurrency(Math.min(...data.map(item => item.value))) : '0₪'
               }
             </div>
             <div className="text-body-premium text-xs text-muted-foreground">

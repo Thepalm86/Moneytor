@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
 import { Card } from '@/components/ui/card'
@@ -21,12 +21,13 @@ import {
 } from 'recharts'
 import { supabase } from '@/lib/supabase-client'
 import { useAuth } from '@/lib/auth-context'
+import { useCachedData } from '@/hooks/use-cached-data'
+import { useSessionState } from '@/hooks/use-persisted-state'
 import { 
   TrendingUp, 
   Calendar, 
   BarChart3, 
   Eye,
-  Sparkles,
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react'
@@ -38,7 +39,7 @@ interface MonthlyData {
   net: number
 }
 
-const formatCurrency = (value: number) => `₪${value.toLocaleString()}`
+const formatCurrency = (value: number) => `${value.toLocaleString()}₪`
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -74,7 +75,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 const LoadingChart = () => (
-  <Card variant="premium" className="p-8 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-2xl animate-pulse">
+  <Card variant="premium" className="p-6 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-2xl animate-pulse">
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -106,72 +107,99 @@ const LoadingChart = () => (
 
 export function MonthlyTrends() {
   const { user } = useAuth()
-  const [data, setData] = useState<MonthlyData[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [viewType, setViewType] = useState<'area' | 'bar'>('area')
+  const [viewType, setViewType] = useSessionState('monthly-trends-view', 'area' as 'area' | 'bar')
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 })
 
-  useEffect(() => {
-    if (!user) return
+  // Memoized month calculation to prevent recalculation
+  const months = useMemo(() => {
+    const monthsArray = []
+    const now = new Date()
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      monthsArray.push({
+        start: new Date(date.getFullYear(), date.getMonth(), 1),
+        end: new Date(date.getFullYear(), date.getMonth() + 1, 0),
+        label: date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      })
+    }
+    return monthsArray
+  }, [])
 
-    const fetchMonthlyData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+  // Cached monthly data fetcher
+  const fetchMonthlyData = useCallback(async (): Promise<MonthlyData[]> => {
+    if (!user) throw new Error('User not authenticated')
 
-        // Get data for last 6 months
-        const months = []
-        const now = new Date()
-        
-        for (let i = 5; i >= 0; i--) {
-          const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-          months.push({
-            start: new Date(date.getFullYear(), date.getMonth(), 1),
-            end: new Date(date.getFullYear(), date.getMonth() + 1, 0),
-            label: date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-          })
-        }
+    const monthlyData: MonthlyData[] = []
 
-        const monthlyData: MonthlyData[] = []
+    // Fetch all months in parallel for better performance
+    const promises = months.map(month =>
+      supabase
+        .from('transactions')
+        .select('amount, type')
+        .eq('user_id', user.id)
+        .gte('date', month.start.toISOString().split('T')[0])
+        .lte('date', month.end.toISOString().split('T')[0])
+        .then(result => ({
+          ...month,
+          data: result.data,
+          error: result.error
+        }))
+    )
 
-        for (const month of months) {
-          const { data: transactions, error } = await supabase
-            .from('transactions')
-            .select('amount, type')
-            .eq('user_id', user.id)
-            .gte('date', month.start.toISOString().split('T')[0])
-            .lte('date', month.end.toISOString().split('T')[0])
+    const results = await Promise.all(promises)
 
-          if (error) throw error
+    for (const result of results) {
+      if (result.error) throw result.error
 
-          const income = transactions
-            ?.filter((t: any) => t.type === 'income')
-            .reduce((sum: number, t: any) => sum + Number(t.amount), 0) || 0
+      const income = result.data
+        ?.filter((t: any) => t.type === 'income')
+        .reduce((sum: number, t: any) => sum + Number(t.amount), 0) || 0
 
-          const expenses = transactions
-            ?.filter((t: any) => t.type === 'expense')
-            .reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount)), 0) || 0
+      const expenses = result.data
+        ?.filter((t: any) => t.type === 'expense')
+        .reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount)), 0) || 0
 
-          monthlyData.push({
-            month: month.label,
-            income,
-            expenses,
-            net: income - expenses
-          })
-        }
-
-        setData(monthlyData)
-      } catch (err) {
-        console.error('Error fetching monthly data:', err)
-        setError('Failed to load monthly trends')
-      } finally {
-        setLoading(false)
-      }
+      monthlyData.push({
+        month: result.label,
+        income,
+        expenses,
+        net: income - expenses
+      })
     }
 
-    fetchMonthlyData()
-  }, [user])
+    return monthlyData
+  }, [user, months])
+
+  // Use cached data with 10-minute cache for trends
+  const { 
+    data: rawData = [], 
+    loading, 
+    error 
+  } = useCachedData(
+    ['monthly-trends', user?.id, months[0]?.start.getTime().toString()],
+    fetchMonthlyData,
+    {
+      ttl: 600000, // 10 minutes - trends change less frequently
+      enabled: !!user && months.length > 0,
+      staleWhileRevalidate: true
+    }
+  )
+
+  // Memoized calculations to prevent recalculation on every render
+  const { data, totalIncome, totalExpenses, netTotal } = useMemo(() => {
+    const safeData = rawData || []
+    const totalIncome = safeData.reduce((sum, month) => sum + month.income, 0)
+    const totalExpenses = safeData.reduce((sum, month) => sum + month.expenses, 0)
+    const netTotal = totalIncome - totalExpenses
+
+    return {
+      data: safeData,
+      totalIncome,
+      totalExpenses,
+      netTotal
+    }
+  }, [rawData])
 
   if (loading) {
     return <LoadingChart />
@@ -179,7 +207,7 @@ export function MonthlyTrends() {
 
   if (error) {
     return (
-      <Card variant="premium" className="p-8 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-destructive/20 shadow-2xl">
+      <Card variant="premium" className="p-6 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-destructive/20 shadow-2xl">
         <div className="text-center py-12 space-y-4">
           <div className="h-16 w-16 mx-auto rounded-2xl bg-destructive/10 flex items-center justify-center">
             <TrendingUp className="h-8 w-8 text-destructive" />
@@ -193,9 +221,6 @@ export function MonthlyTrends() {
     )
   }
 
-  const totalIncome = data.reduce((sum, month) => sum + month.income, 0)
-  const totalExpenses = data.reduce((sum, month) => sum + month.expenses, 0)
-  const netTotal = totalIncome - totalExpenses
 
   return (
     <motion.div
@@ -204,7 +229,7 @@ export function MonthlyTrends() {
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
       transition={{ duration: 0.6, ease: [0.21, 0.47, 0.32, 0.98] }}
     >
-      <Card variant="premium" className="p-8 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-2xl hover:shadow-3xl transition-all duration-500 relative overflow-hidden">
+      <Card variant="premium" className="p-6 backdrop-blur-xl bg-gradient-to-br from-card/95 via-card/98 to-card/95 border-2 border-border/50 shadow-2xl hover:shadow-3xl transition-all duration-500 relative overflow-hidden">
         {/* Premium background effects */}
         <motion.div 
           className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0"
@@ -219,7 +244,7 @@ export function MonthlyTrends() {
           }}
         />
         
-        <div className="relative z-10 space-y-8">
+        <div className="relative z-10 space-y-4">
           {/* Enhanced Header */}
           <motion.div 
             className="flex items-center justify-between"
@@ -227,130 +252,84 @@ export function MonthlyTrends() {
             animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <motion.div 
-                className="relative h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 backdrop-blur-sm border border-primary/20 flex items-center justify-center shadow-lg"
-                whileHover={{ 
-                  scale: 1.05, 
-                  rotate: 5,
-                  boxShadow: "0 15px 30px -5px rgba(139, 92, 246, 0.3)"
-                }}
+                className="relative h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 backdrop-blur-sm border border-primary/20 flex items-center justify-center shadow-sm"
+                whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
               >
-                <BarChart3 className="h-7 w-7 text-primary" />
+                <BarChart3 className="h-5 w-5 text-primary" />
                 
-                {/* Background pulse animation */}
-                <motion.div 
-                  className="absolute inset-0 rounded-2xl bg-primary/10 opacity-0"
-                  animate={{
-                    opacity: [0, 0.3, 0],
-                    scale: [1, 1.2, 1]
-                  }}
-                  transition={{ 
-                    duration: 2,
-                    repeat: Infinity,
-                    repeatType: "loop"
-                  }}
-                />
               </motion.div>
               
-              <div className="space-y-1">
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/80 bg-clip-text text-transparent">
-                  Monthly Trends
-                </h3>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary/70" />
-                  <span className="text-sm font-medium text-muted-foreground/70 tracking-wider uppercase">
-                    Financial Flow Analysis
-                  </span>
-                </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Monthly Trends</h3>
+                <p className="text-xs text-muted-foreground/70">Financial Flow Analysis</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <Badge variant="default" className="flex items-center gap-1 bg-gradient-to-r from-info/10 to-primary/10 border-info/20">
-                <Eye className="h-3 w-3" />
+            <div className="flex items-center gap-2">
+              <Badge variant="default" className="text-xs bg-gradient-to-r from-info/10 to-primary/10 border-info/20">
+                <Eye className="h-3 w-3 mr-1" />
                 6 Months
               </Badge>
               
-              <div className="flex items-center gap-2">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    variant={viewType === 'area' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewType('area')}
-                    className="text-sm font-semibold backdrop-blur-sm shadow-md"
-                  >
-                    Area
-                  </Button>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    variant={viewType === 'bar' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewType('bar')}
-                    className="text-sm font-semibold backdrop-blur-sm shadow-md"
-                  >
-                    Bar
-                  </Button>
-                </motion.div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant={viewType === 'area' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewType('area')}
+                  className="text-xs px-2 py-1"
+                >
+                  Area
+                </Button>
+                <Button
+                  variant={viewType === 'bar' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewType('bar')}
+                  className="text-xs px-2 py-1"
+                >
+                  Bar
+                </Button>
               </div>
             </div>
           </motion.div>
 
-          {/* Enhanced Summary Stats */}
+          {/* Compact Summary Stats */}
           <motion.div 
-            className="grid grid-cols-3 gap-6"
+            className="flex items-center justify-between py-2 px-4 rounded-lg bg-gradient-to-r from-card/50 to-card/30 border border-border/30"
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <motion.div 
-              className="text-center p-4 rounded-2xl bg-gradient-to-br from-success/10 to-success/5 border border-success/20 backdrop-blur-sm"
-              whileHover={{ scale: 1.02, y: -2 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            >
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <ArrowUpRight className="h-4 w-4 text-success" />
-                <p className="text-sm font-semibold text-success">Total Income</p>
-              </div>
-              <p className="text-xl font-bold text-success">{formatCurrency(totalIncome)}</p>
-            </motion.div>
+            <div className="flex items-center gap-1">
+              <ArrowUpRight className="h-3 w-3 text-success" />
+              <span className="text-xs font-medium text-muted-foreground">Income:</span>
+              <span className="text-sm font-bold text-success">{formatCurrency(totalIncome)}</span>
+            </div>
             
-            <motion.div 
-              className="text-center p-4 rounded-2xl bg-gradient-to-br from-destructive/10 to-destructive/5 border border-destructive/20 backdrop-blur-sm"
-              whileHover={{ scale: 1.02, y: -2 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            >
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <ArrowDownRight className="h-4 w-4 text-destructive" />
-                <p className="text-sm font-semibold text-destructive">Total Expenses</p>
-              </div>
-              <p className="text-xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
-            </motion.div>
+            <div className="w-px h-4 bg-border/50"></div>
             
-            <motion.div 
-              className={`text-center p-4 rounded-2xl backdrop-blur-sm border ${
-                netTotal >= 0 
-                  ? 'bg-gradient-to-br from-success/10 to-success/5 border-success/20' 
-                  : 'bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20'
-              }`}
-              whileHover={{ scale: 1.02, y: -2 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            >
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <TrendingUp className={`h-4 w-4 ${netTotal >= 0 ? 'text-success' : 'text-destructive'}`} />
-                <p className={`text-sm font-semibold ${netTotal >= 0 ? 'text-success' : 'text-destructive'}`}>Net Total</p>
-              </div>
-              <p className={`text-xl font-bold ${netTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {formatCurrency(netTotal)}
-              </p>
-            </motion.div>
+            <div className="flex items-center gap-1">
+              <ArrowDownRight className="h-3 w-3 text-destructive" />
+              <span className="text-xs font-medium text-muted-foreground">Expenses:</span>
+              <span className="text-sm font-bold text-destructive">{formatCurrency(totalExpenses)}</span>
+            </div>
+            
+            <div className="w-px h-4 bg-border/50"></div>
+            
+            <div className="flex items-center gap-1">
+              <TrendingUp className={`h-3 w-3 ${netTotal >= 0 ? 'text-success' : 'text-destructive'}`} />
+              <span className="text-xs font-medium text-muted-foreground">Net:</span>
+              <span className={`text-sm font-bold ${netTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {formatCurrency(Math.abs(netTotal))}
+              </span>
+            </div>
           </motion.div>
 
-          {/* Enhanced Chart */}
+          {/* Compact Chart */}
           <motion.div 
-            className="h-96 w-full p-6 rounded-2xl bg-gradient-to-br from-card/50 to-card/30 border border-border/30 backdrop-blur-sm"
+            className="h-72 w-full p-4 rounded-lg bg-gradient-to-br from-card/50 to-card/30 border border-border/30 backdrop-blur-sm"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={inView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.6, delay: 0.5 }}

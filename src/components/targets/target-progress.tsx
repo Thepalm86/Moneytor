@@ -3,6 +3,8 @@
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AlertTriangle, Calendar, Target, TrendingUp, TrendingDown } from 'lucide-react'
+import { useCelebration } from '@/components/celebrations'
+import { useEffect, useState } from 'react'
 
 interface TargetProgressProps {
   target: {
@@ -28,6 +30,9 @@ interface TargetProgressProps {
 }
 
 export function TargetProgress({ target, onClick }: TargetProgressProps) {
+  const { triggerCelebration } = useCelebration()
+  const [previousStatus, setPreviousStatus] = useState(target.status)
+  
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
@@ -36,6 +41,28 @@ export function TargetProgress({ target, onClick }: TargetProgressProps) {
       maximumFractionDigits: 0,
     }).format(amount)
   }
+
+  // Monitor status changes for warnings and celebrations
+  useEffect(() => {
+    if (previousStatus !== target.status && previousStatus !== '') {
+      if (target.status === 'warning' && previousStatus === 'on_track') {
+        triggerCelebration({
+          type: 'gentle-pop',
+          duration: 3000,
+          message: `⚠️ Warning: "${target.name}" budget is nearing the limit. Consider tracking expenses closely.`,
+          intensity: 'low'
+        })
+      } else if (target.status === 'exceeded' && (previousStatus === 'on_track' || previousStatus === 'warning')) {
+        triggerCelebration({
+          type: 'sparkles',
+          duration: 3500,
+          message: `💰 "${target.name}" budget exceeded. Time to review spending or adjust the budget!`,
+          intensity: 'medium'
+        })
+      }
+    }
+    setPreviousStatus(target.status)
+  }, [target.status, target.name, triggerCelebration, previousStatus])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('he-IL', {

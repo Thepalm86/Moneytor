@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
 import { Card } from '@/components/ui/card'
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 import { useAuth } from '@/lib/auth-context'
+import { useCachedData } from '@/hooks/use-cached-data'
 
 interface FinancialMetrics {
   netWorth: number
@@ -46,7 +47,7 @@ interface TrendData {
 }
 
 const formatCurrency = (amount: number) => {
-  return `₪${amount.toLocaleString()}`
+  return `${amount.toLocaleString()}₪`
 }
 
 const TrendIndicator = ({ trend, label, compact = false }: { 
@@ -192,7 +193,7 @@ const EnhancedMetricCard = ({
       >
         <Card 
           variant="premium" 
-          className={`relative p-8 h-full flex flex-col backdrop-blur-xl bg-gradient-to-br from-card/90 via-card/95 to-card/90 border-2 border-border/50 shadow-xl hover:shadow-2xl ${className}`}
+          className={`relative p-5 h-full flex flex-col backdrop-blur-xl bg-gradient-to-br from-card/90 via-card/95 to-card/90 border-2 border-border/50 shadow-xl hover:shadow-2xl ${className}`}
         >
           {/* Premium animated background effects */}
           <motion.div 
@@ -216,10 +217,10 @@ const EnhancedMetricCard = ({
           {/* Content */}
           <div className="relative flex flex-col h-full z-10">
             <motion.div 
-              className="flex items-start justify-between mb-6"
+              className="flex items-start justify-between mb-4"
               variants={childVariants}
             >
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 space-y-3">
                 <motion.p 
                   className="text-xs font-bold text-muted-foreground/90 tracking-[0.1em] uppercase"
                   variants={childVariants}
@@ -228,7 +229,7 @@ const EnhancedMetricCard = ({
                 </motion.p>
                 <motion.div
                   variants={childVariants}
-                  className="space-y-2"
+                  className="space-y-1"
                 >
                   <p className="text-3xl lg:text-4xl font-bold text-display bg-gradient-to-br from-foreground to-foreground/80 bg-clip-text text-transparent leading-none">
                     {typeof value === 'number' ? formatCurrency(value) : value}
@@ -245,7 +246,7 @@ const EnhancedMetricCard = ({
 
               {/* Enhanced icon container */}
               <motion.div 
-                className={`relative h-16 w-16 rounded-2xl ${iconBgColor} backdrop-blur-sm border border-border/30 flex items-center justify-center flex-shrink-0 shadow-lg group-hover:shadow-xl`}
+                className={`relative h-12 w-12 rounded-xl ${iconBgColor} backdrop-blur-sm border border-border/30 flex items-center justify-center flex-shrink-0 shadow-lg group-hover:shadow-xl`}
                 variants={childVariants}
                 whileHover={{ 
                   scale: 1.15, 
@@ -254,11 +255,11 @@ const EnhancedMetricCard = ({
                 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
               >
-                <Icon className={`h-7 w-7 ${iconColor}`} />
+                <Icon className={`h-5 w-5 ${iconColor}`} />
                 
                 {/* Icon background glow */}
                 <motion.div 
-                  className={`absolute inset-0 rounded-2xl ${iconBgColor} opacity-0 group-hover:opacity-70`}
+                  className={`absolute inset-0 rounded-xl ${iconBgColor} opacity-0 group-hover:opacity-70`}
                   animate={{
                     scale: [1, 1.3, 1],
                     opacity: [0, 0.4, 0]
@@ -274,7 +275,7 @@ const EnhancedMetricCard = ({
 
             {/* Enhanced bottom section */}
             <motion.div 
-              className="flex flex-col justify-end flex-1 space-y-5"
+              className="flex flex-col justify-end flex-1 space-y-3"
               variants={childVariants}
             >
               {additionalInfo && (
@@ -313,7 +314,7 @@ const EnhancedMetricCard = ({
 }
 
 const LoadingCard = () => (
-  <Card variant="premium" className="p-8 animate-pulse h-full flex flex-col">
+  <Card variant="premium" className="p-5 animate-pulse h-full flex flex-col">
     <div className="flex items-center justify-between mb-6">
       <div className="flex-1 space-y-4">
         <Skeleton className="h-3 w-24 bg-muted/30" />
@@ -334,131 +335,143 @@ const LoadingCard = () => (
 
 export function EnhancedOverviewCards() {
   const { user } = useAuth()
-  const [metrics, setMetrics] = useState<FinancialMetrics | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!user) return
-
-    const fetchEnhancedMetrics = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        // Calculate current and last month periods
-        const now = new Date()
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
-
-        // Fetch current month transactions
-        const { data: currentTransactions, error: currentError } = await supabase
-          .from('transactions')
-          .select('amount, type')
-          .eq('user_id', user.id)
-          .gte('date', startOfMonth.toISOString().split('T')[0])
-
-        // Fetch last month transactions
-        const { data: lastMonthTransactions, error: lastError } = await supabase
-          .from('transactions')
-          .select('amount, type')
-          .eq('user_id', user.id)
-          .gte('date', startOfLastMonth.toISOString().split('T')[0])
-          .lte('date', endOfLastMonth.toISOString().split('T')[0])
-
-        // Fetch active budget targets
-        const { data: targets, error: targetsError } = await supabase
-          .from('targets')
-          .select('target_amount')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-
-        if (currentError || lastError || targetsError) {
-          throw currentError || lastError || targetsError
-        }
-
-        // Calculate current month metrics
-        const currentIncome = currentTransactions
-          ?.filter((t) => t.type === 'income')
-          .reduce((sum, t) => sum + Number(t.amount), 0) || 0
-
-        const currentExpenses = currentTransactions
-          ?.filter((t) => t.type === 'expense')
-          .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0
-
-        // Calculate last month metrics
-        const lastMonthIncome = lastMonthTransactions
-          ?.filter((t) => t.type === 'income')
-          .reduce((sum, t) => sum + Number(t.amount), 0) || 0
-
-        const lastMonthExpenses = lastMonthTransactions
-          ?.filter((t) => t.type === 'expense')
-          .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0
-
-        // Calculate net worth and trends
-        const currentNetWorth = currentIncome - currentExpenses
-        const lastMonthNetWorth = lastMonthIncome - lastMonthExpenses
-
-        // Budget utilization
-        const totalBudget = targets?.reduce((sum, t) => sum + Number(t.target_amount), 0) || 0
-        const budgetUtilization = {
-          percentage: totalBudget > 0 ? (currentExpenses / totalBudget) * 100 : 0,
-          onTrack: totalBudget > 0 ? currentExpenses / totalBudget < 0.85 : true,
-          budgetCount: targets?.length || 0
-        }
-
-        // Calculate trends
-        const incomeTrend: TrendData = lastMonthIncome > 0 
-          ? { 
-              value: currentIncome, 
-              percentage: ((currentIncome - lastMonthIncome) / lastMonthIncome) * 100,
-              isPositive: currentIncome >= lastMonthIncome
-            }
-          : { value: currentIncome, percentage: 0, isPositive: true }
-
-        const expensesTrend: TrendData = lastMonthExpenses > 0 
-          ? { 
-              value: currentExpenses, 
-              percentage: ((currentExpenses - lastMonthExpenses) / lastMonthExpenses) * 100,
-              isPositive: currentExpenses <= lastMonthExpenses // Lower expenses are positive
-            }
-          : { value: currentExpenses, percentage: 0, isPositive: false }
-
-        const netWorthTrend: TrendData = {
-          value: currentNetWorth,
-          percentage: lastMonthNetWorth !== 0 
-            ? ((currentNetWorth - lastMonthNetWorth) / Math.abs(lastMonthNetWorth)) * 100
-            : 0,
-          isPositive: currentNetWorth >= lastMonthNetWorth
-        }
-
-        setMetrics({
-          netWorth: currentNetWorth,
-          monthlyIncome: currentIncome,
-          monthlyExpenses: currentExpenses,
-          budgetUtilization,
-          trends: {
-            income: incomeTrend,
-            expenses: expensesTrend,
-            netWorth: netWorthTrend
-          }
-        })
-
-      } catch (err) {
-        console.error('Error fetching enhanced metrics:', err)
-        setError('Failed to load financial metrics')
-      } finally {
-        setLoading(false)
+  // Memoized date calculations to prevent recalculation on every render
+  const dateRanges = useMemo(() => {
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    
+    return {
+      currentMonth: {
+        start: startOfMonth.toISOString().split('T')[0],
+        end: now.toISOString().split('T')[0]
+      },
+      lastMonth: {
+        start: startOfLastMonth.toISOString().split('T')[0],
+        end: endOfLastMonth.toISOString().split('T')[0]
       }
     }
+  }, []) // Only recalculate when component mounts
 
-    fetchEnhancedMetrics()
-  }, [user])
+  // Cached data fetching with memoized fetcher function
+  const fetchEnhancedMetrics = useCallback(async (): Promise<FinancialMetrics> => {
+    if (!user) throw new Error('User not authenticated')
+
+    // Fetch all data in parallel for better performance
+    const [currentTransactions, lastMonthTransactions, targets] = await Promise.all([
+      supabase
+        .from('transactions')
+        .select('amount, type')
+        .eq('user_id', user.id)
+        .gte('date', dateRanges.currentMonth.start),
+      
+      supabase
+        .from('transactions')
+        .select('amount, type')
+        .eq('user_id', user.id)
+        .gte('date', dateRanges.lastMonth.start)
+        .lte('date', dateRanges.lastMonth.end),
+      
+      supabase
+        .from('targets')
+        .select('target_amount')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+    ])
+
+    // Check for errors
+    if (currentTransactions.error) throw currentTransactions.error
+    if (lastMonthTransactions.error) throw lastMonthTransactions.error
+    if (targets.error) throw targets.error
+
+    // Calculate current month metrics
+    const currentIncome = currentTransactions.data
+      ?.filter((t: any) => t.type === 'income')
+      .reduce((sum: number, t: any) => sum + Number(t.amount), 0) || 0
+
+    const currentExpenses = currentTransactions.data
+      ?.filter((t: any) => t.type === 'expense')
+      .reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount)), 0) || 0
+
+    // Calculate last month metrics
+    const lastMonthIncome = lastMonthTransactions.data
+      ?.filter((t: any) => t.type === 'income')
+      .reduce((sum: number, t: any) => sum + Number(t.amount), 0) || 0
+
+    const lastMonthExpenses = lastMonthTransactions.data
+      ?.filter((t: any) => t.type === 'expense')
+      .reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount)), 0) || 0
+
+    // Calculate net worth and trends
+    const currentNetWorth = currentIncome - currentExpenses
+    const lastMonthNetWorth = lastMonthIncome - lastMonthExpenses
+
+    // Budget utilization
+    const totalBudget = targets.data?.reduce((sum: number, t: any) => sum + Number(t.target_amount), 0) || 0
+    const budgetUtilization = {
+      percentage: totalBudget > 0 ? (currentExpenses / totalBudget) * 100 : 0,
+      onTrack: totalBudget > 0 ? currentExpenses / totalBudget < 0.85 : true,
+      budgetCount: targets.data?.length || 0
+    }
+
+    // Calculate trends
+    const incomeTrend: TrendData = lastMonthIncome > 0 
+      ? { 
+          value: currentIncome, 
+          percentage: ((currentIncome - lastMonthIncome) / lastMonthIncome) * 100,
+          isPositive: currentIncome >= lastMonthIncome
+        }
+      : { value: currentIncome, percentage: 0, isPositive: true }
+
+    const expensesTrend: TrendData = lastMonthExpenses > 0 
+      ? { 
+          value: currentExpenses, 
+          percentage: ((currentExpenses - lastMonthExpenses) / lastMonthExpenses) * 100,
+          isPositive: currentExpenses <= lastMonthExpenses // Lower expenses are positive
+        }
+      : { value: currentExpenses, percentage: 0, isPositive: false }
+
+    const netWorthTrend: TrendData = {
+      value: currentNetWorth,
+      percentage: lastMonthNetWorth !== 0 
+        ? ((currentNetWorth - lastMonthNetWorth) / Math.abs(lastMonthNetWorth)) * 100
+        : 0,
+      isPositive: currentNetWorth >= lastMonthNetWorth
+    }
+
+    return {
+      netWorth: currentNetWorth,
+      monthlyIncome: currentIncome,
+      monthlyExpenses: currentExpenses,
+      budgetUtilization,
+      trends: {
+        income: incomeTrend,
+        expenses: expensesTrend,
+        netWorth: netWorthTrend
+      }
+    }
+  }, [user, dateRanges])
+
+  // Use cached data with 5-minute cache and stale-while-revalidate
+  const { 
+    data: metrics, 
+    loading, 
+    error 
+  } = useCachedData(
+    ['enhanced-metrics', user?.id, dateRanges.currentMonth.start],
+    fetchEnhancedMetrics,
+    {
+      ttl: 300000, // 5 minutes
+      enabled: !!user,
+      staleWhileRevalidate: true
+    }
+  )
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 animate-in">
         {[...Array(3)].map((_, i) => (
           <div key={i} style={{ animationDelay: `${i * 100}ms` }}>
             <LoadingCard />
@@ -470,7 +483,7 @@ export function EnhancedOverviewCards() {
 
   if (error) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <Card variant="premium" className="p-8 col-span-full text-center space-y-4">
           <div className="h-16 w-16 mx-auto rounded-2xl bg-destructive/10 flex items-center justify-center">
             <DollarSign className="h-8 w-8 text-destructive" />
@@ -525,7 +538,7 @@ export function EnhancedOverviewCards() {
 
   return (
     <motion.div 
-      className="grid grid-cols-1 md:grid-cols-3 gap-8"
+      className="grid grid-cols-1 md:grid-cols-3 gap-5"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
