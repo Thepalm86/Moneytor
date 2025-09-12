@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 export interface NavigationState {
   // Sidebar state
@@ -21,6 +22,9 @@ export interface NavigationState {
   activeTab: string
   dashboardMode: boolean // true = single-page dashboard, false = multi-page routing
   
+  // Hydration state
+  isHydrated: boolean
+  
   // Actions
   setSidebarOpen: (open: boolean) => void
   setSidebarCollapsed: (collapsed: boolean) => void
@@ -35,6 +39,9 @@ export interface NavigationState {
   // Dashboard tab actions
   setActiveTab: (tab: string) => void
   setDashboardMode: (enabled: boolean) => void
+  
+  // Hydration actions
+  setIsHydrated: (hydrated: boolean) => void
 }
 
 export const useNavigationStore = create<NavigationState>()((set, get) => ({
@@ -48,6 +55,7 @@ export const useNavigationStore = create<NavigationState>()((set, get) => ({
       breadcrumbs: [],
       activeTab: 'overview', // Default to overview tab
       dashboardMode: true, // Enable single-page dashboard by default
+      isHydrated: false, // Start as not hydrated
 
       // Sidebar actions
       setSidebarOpen: (open) => 
@@ -106,6 +114,10 @@ export const useNavigationStore = create<NavigationState>()((set, get) => ({
 
       setDashboardMode: (enabled) => 
         set(() => ({ dashboardMode: enabled })),
+
+      // Hydration actions
+      setIsHydrated: (hydrated) => 
+        set(() => ({ isHydrated: hydrated })),
 }))
 
 // Navigation items configuration

@@ -1,15 +1,18 @@
 'use client';
 
 import * as React from 'react'
+import { useEffect, useState } from 'react'
 import { DashboardLayout, PageWrapper, ContentArea } from '@/components/layout'
 import { useNavigationStore } from '@/lib/stores/navigation-store'
+import { useStoreHydration } from '@/lib/hooks/use-store-hydration'
 import { 
   OverviewTab,
   CategoriesTab,
   TransactionsTab,
   TargetsTab,
   GoalsTab,
-  ReportsTab
+  ReportsTab,
+  DashboardLoading
 } from '@/components/dashboard'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -79,9 +82,33 @@ const tabConfig = {
 }
 
 export default function DashboardPage() {
-  const { activeTab } = useNavigationStore()
+  const isHydrated = useStoreHydration()
+  const { activeTab, setIsHydrated } = useNavigationStore()
   
-  // Get current tab configuration
+  // Ensure store knows it's hydrated
+  useEffect(() => {
+    if (isHydrated) {
+      setIsHydrated(true)
+    }
+  }, [isHydrated, setIsHydrated])
+
+  // Show loading state during hydration
+  if (!isHydrated) {
+    return (
+      <DashboardLayout>
+        <PageWrapper 
+          title="Dashboard"
+          description="Loading your financial overview..."
+        >
+          <ContentArea>
+            <DashboardLoading />
+          </ContentArea>
+        </PageWrapper>
+      </DashboardLayout>
+    )
+  }
+
+  // Get current tab configuration (only after hydration)
   const currentTab = tabConfig[activeTab as keyof typeof tabConfig] || tabConfig.overview
   const TabComponent = currentTab.component
 

@@ -196,6 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     closeMobileMenu,
     activeTab,
     dashboardMode,
+    isHydrated,
   } = useNavigationStore()
 
   // Check if we're in the dashboard
@@ -303,8 +304,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin">
           <nav className="space-y-1">
-            {isDashboard && dashboardMode ? (
-              // Dashboard tab navigation
+            {isDashboard && dashboardMode && isHydrated ? (
+              // Dashboard tab navigation (only when hydrated)
               dashboardTabs.map((tab) => {
                 const isActive = activeTab === tab.key
                 
@@ -319,7 +320,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 )
               })
             ) : (
-              // Regular page navigation
+              // Regular page navigation (fallback and non-dashboard pages)
               navigationItems.map((item) => {
                 const isActive = pathname === item.href
                 
