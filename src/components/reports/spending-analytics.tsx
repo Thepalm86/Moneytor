@@ -2,9 +2,9 @@
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { TrendingDown, DollarSign, Filter } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { TrendingDown, DollarSign, Filter, Download, FileText } from 'lucide-react';
 import { useState } from 'react';
+import { EnhancedPieChart, EnhancedBarChart, exportChart, ChartData } from '@/components/charts';
 
 interface SpendingAnalyticsProps {
   data?: {
@@ -71,15 +71,15 @@ export function SpendingAnalytics({ data, isLoading }: SpendingAnalyticsProps) {
     return `${value.toFixed(1)}%`;
   };
 
-  // Prepare pie chart data
+  // Prepare enhanced chart data
   const pieChartData = data?.topCategories?.map((category, index) => ({
     name: category.name,
     value: category.amount,
     percentage: category.percentage,
-    color: category.color || COLORS[index % COLORS.length]
+    color: category.color || COLORS[index % COLORS.length],
+    count: category.count
   })) || [];
 
-  // Prepare bar chart data
   const barChartData = data?.topCategories?.map(category => ({
     name: category.name.length > 10 ? category.name.substring(0, 10) + '...' : category.name,
     fullName: category.name,
@@ -88,29 +88,55 @@ export function SpendingAnalytics({ data, isLoading }: SpendingAnalyticsProps) {
     color: category.color
   })) || [];
 
-  // Custom tooltip for charts
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="glass-card p-4 border shadow-lg rounded-lg">
-          <p className="text-display font-medium">{payload[0].payload.fullName || label}</p>
-          <p className="text-body-premium text-sm text-muted-foreground">
-            Amount: {formatCurrency(payload[0].value)}
-          </p>
-          {payload[0].payload.count && (
-            <p className="text-body-premium text-sm text-muted-foreground">
-              Transactions: {payload[0].payload.count}
-            </p>
-          )}
-          {payload[0].payload.percentage && (
-            <p className="text-body-premium text-sm text-muted-foreground">
-              {formatPercentage(payload[0].payload.percentage)} of total
-            </p>
-          )}
-        </div>
-      );
+  // Export handlers
+  const handlePieChartExport = async () => {
+    const chartData: ChartData = {
+      title: 'Category Distribution',
+      data: pieChartData,
+      metadata: {
+        period: data?.period || period,
+        generatedAt: new Date(),
+        totalAmount: data?.total_spent || 0,
+        currency: '₪'
+      }
+    };
+    
+    try {
+      await exportChart('pie-chart-container', chartData, {
+        filename: `category-distribution-${period}.png`,
+        format: 'png'
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
     }
-    return null;
+  };
+
+  const handleBarChartExport = async () => {
+    const chartData: ChartData = {
+      title: 'Top Spending Categories',
+      data: barChartData,
+      metadata: {
+        period: data?.period || period,
+        generatedAt: new Date(),
+        totalAmount: data?.total_spent || 0,
+        currency: '₪'
+      }
+    };
+    
+    try {
+      await exportChart('bar-chart-container', chartData, {
+        filename: `top-categories-${period}.png`,
+        format: 'png'
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+  };
+
+  // Handle segment/bar drill-down
+  const handleCategoryDrillDown = (category: any) => {
+    console.log('Drill down into category:', category);
+    // Could implement navigation to category-specific transactions
   };
 
   return (
@@ -181,63 +207,32 @@ export function SpendingAnalytics({ data, isLoading }: SpendingAnalyticsProps) {
         </Card>
       </div>
 
-      {/* Charts Grid */}
+      {/* Enhanced Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Category Distribution Pie Chart */}
-        <Card variant="glass" className="p-6 animate-in" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
-          <h4 className="text-display text-base font-semibold mb-4">Category Distribution</h4>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieChartData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percentage }) => `${name}: ${formatPercentage(percentage)}`}
-                  labelLine={false}
-                >
-                  {pieChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+        {/* Enhanced Pie Chart */}
+        <div id="pie-chart-container" className="animate-in" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
+          <EnhancedPieChart
+            data={pieChartData}
+            title="Category Distribution"
+            subtitle="Breakdown of expenses by category"
+            onSegmentClick={handleCategoryDrillDown}
+            onExport={handlePieChartExport}
+          />
+        </div>
 
-        {/* Top Categories Bar Chart */}
-        <Card variant="glass" className="p-6 animate-in" style={{ animationDelay: '400ms', animationFillMode: 'both' }}>
-          <h4 className="text-display text-base font-semibold mb-4">Top Spending Categories</h4>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barChartData}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis 
-                  dataKey="name" 
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `₪${(value / 1000).toFixed(0)}k`}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar 
-                  dataKey="amount" 
-                  radius={[4, 4, 0, 0]}
-                  fill="#8B5CF6"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+        {/* Enhanced Bar Chart */}
+        <div id="bar-chart-container" className="animate-in" style={{ animationDelay: '400ms', animationFillMode: 'both' }}>
+          <EnhancedBarChart
+            data={barChartData}
+            title="Top Spending Categories"
+            subtitle="Highest expense categories"
+            dataKey="amount"
+            onBarClick={handleCategoryDrillDown}
+            onExport={handleBarChartExport}
+            showTrends={false}
+            interactive={true}
+          />
+        </div>
       </div>
 
       {/* Category Details Table */}

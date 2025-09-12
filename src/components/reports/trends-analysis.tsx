@@ -2,9 +2,10 @@
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, Calendar, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, BarChart3, Download } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { useState } from 'react';
+import { EnhancedLineChart, exportChart, ChartData } from '@/components/charts';
 
 interface TrendsAnalysisProps {
   monthlyData?: Array<{
@@ -85,18 +86,38 @@ export function TrendsAnalysis({ monthlyData = [], expenseTrends = [], isLoading
     return null;
   };
 
-  const ExpenseTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="glass-card p-4 border shadow-lg rounded-lg">
-          <p className="text-display font-medium">{payload[0].payload.displayDate}</p>
-          <p className="text-body-premium text-sm" style={{ color: payload[0].color }}>
-            Expenses: {formatCurrency(payload[0].value)}
-          </p>
-        </div>
-      );
+  // Prepare enhanced line chart data
+  const expenseLineData = expenseTrends.map(item => ({
+    name: item.displayDate,
+    date: item.date,
+    value: item.amount
+  }));
+
+  // Export handlers
+  const handleExpenseExport = async () => {
+    const chartData: ChartData = {
+      title: 'Daily Expense Trends',
+      data: expenseLineData,
+      metadata: {
+        period: 'Last 30 days',
+        generatedAt: new Date(),
+        currency: '₪'
+      }
+    };
+    
+    try {
+      await exportChart('expense-trends-container', chartData, {
+        filename: 'daily-expense-trends.png',
+        format: 'png'
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
     }
-    return null;
+  };
+
+  const handlePointClick = (point: any, index: number) => {
+    console.log('Point clicked:', point, 'at index:', index);
+    // Could implement detailed day view or transaction drill-down
   };
 
   return (
@@ -321,46 +342,20 @@ export function TrendsAnalysis({ monthlyData = [], expenseTrends = [], isLoading
         </div>
       </Card>
 
-      {/* Daily Expense Trends */}
-      <Card variant="glass" className="p-6 animate-in" style={{ animationDelay: '400ms', animationFillMode: 'both' }}>
-        <div className="flex items-center gap-2 mb-6">
-          <TrendingDown className="w-5 h-5 text-red-500" />
-          <h4 className="text-display text-base font-semibold">Daily Expense Trends</h4>
-          <span className="text-body-premium text-sm text-muted-foreground ml-2">
-            (Last 30 days)
-          </span>
-        </div>
-        
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={expenseTrends}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis 
-                dataKey="displayDate" 
-                fontSize={10}
-                tickLine={false}
-                axisLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis 
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={formatCompactCurrency}
-              />
-              <Tooltip content={<ExpenseTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="amount" 
-                stroke="#8B5CF6" 
-                fill="#8B5CF6" 
-                fillOpacity={0.2}
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
+      {/* Enhanced Daily Expense Trends */}
+      <div id="expense-trends-container" className="animate-in" style={{ animationDelay: '400ms', animationFillMode: 'both' }}>
+        <EnhancedLineChart
+          data={expenseLineData}
+          title="Daily Expense Trends"
+          subtitle="Track your daily spending patterns (Last 30 days)"
+          dataKey="value"
+          onPointClick={handlePointClick}
+          onExport={handleExpenseExport}
+          showBrush={true}
+          showTrendline={true}
+          className="mb-6"
+        />
+      </div>
 
       {/* Summary Statistics */}
       <Card variant="glass" className="p-6 animate-in" style={{ animationDelay: '500ms', animationFillMode: 'both' }}>

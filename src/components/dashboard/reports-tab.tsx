@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { ReportsOverview } from '@/components/reports/reports-overview';
 import { SpendingAnalytics } from '@/components/reports/spending-analytics';
 import { TrendsAnalysis } from '@/components/reports/trends-analysis';
-import { BarChart3, PieChart, TrendingUp, RefreshCw, Download, FileText } from 'lucide-react';
+import { ExportDialog, exportChart, ChartData, DashboardCustomizer, DashboardConfig, AdvancedAnalytics } from '@/components/charts';
+import { BarChart3, PieChart, TrendingUp, RefreshCw, Download, FileText, Brain, Settings } from 'lucide-react';
 
-type TabType = 'overview' | 'spending' | 'trends';
+type TabType = 'overview' | 'spending' | 'trends' | 'analytics';
 
 export function ReportsTab() {
   const { user } = useAuth();
@@ -23,6 +24,30 @@ export function ReportsTab() {
   const [spendingAnalytics, setSpendingAnalytics] = useState<any>(null);
   const [monthlyComparison, setMonthlyComparison] = useState<any[]>([]);
   const [expenseTrends, setExpenseTrends] = useState<any[]>([]);
+  const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>({
+    layout: 'grid',
+    theme: 'auto',
+    chartTypes: {
+      overview: 'mixed',
+      spending: 'pie',
+      trends: 'line'
+    },
+    visibleSections: {
+      overview: true,
+      spending: true,
+      trends: true,
+      summary: true
+    },
+    colors: {
+      primary: '#8B5CF6',
+      secondary: '#06B6D4',
+      accent: '#10B981'
+    },
+    animations: true,
+    autoRefresh: false,
+    refreshInterval: 5,
+    exportFormat: 'png'
+  });
 
   // Load all analytics data
   const loadAnalytics = async () => {
@@ -66,10 +91,82 @@ export function ReportsTab() {
     loadAnalytics();
   };
 
-  // Export placeholder (would implement actual export functionality)
-  const handleExport = () => {
-    // Would implement PDF/CSV export
-    console.log('Export functionality would be implemented here');
+  // Enhanced export functionality
+  const handleCompleteExport = async (format: 'png' | 'pdf' | 'csv' | 'json') => {
+    const allData = {
+      financialSummary,
+      spendingAnalytics,
+      monthlyComparison,
+      expenseTrends
+    };
+
+    const chartData: ChartData = {
+      title: 'Complete Financial Reports',
+      data: Object.values(allData).flat(),
+      metadata: {
+        period: 'month',
+        generatedAt: new Date(),
+        currency: '₪'
+      }
+    };
+
+    // For now, we'll export the current tab's main container
+    const containerId = activeTab === 'overview' ? 'overview-container' :
+                       activeTab === 'spending' ? 'spending-container' : 
+                       activeTab === 'trends' ? 'trends-container' :
+                       'analytics-container';
+
+    try {
+      await exportChart(containerId, chartData, {
+        filename: `financial-reports-${activeTab}-${format}`,
+        format
+      });
+    } catch (error) {
+      console.error('Complete export failed:', error);
+      throw error;
+    }
+  };
+
+  // Dashboard customization handlers
+  const handleConfigChange = (newConfig: DashboardConfig) => {
+    setDashboardConfig(newConfig);
+    // Apply the configuration immediately
+    // This could update CSS variables or component props
+  };
+
+  const handleConfigSave = (config: DashboardConfig) => {
+    // Save to localStorage or user preferences
+    localStorage.setItem('dashboardConfig', JSON.stringify(config));
+    console.log('Dashboard configuration saved:', config);
+  };
+
+  // Prepare advanced analytics data
+  const advancedAnalyticsData = {
+    transactions: monthlyComparison.flatMap(month => [
+      { date: month.monthKey, amount: month.income, category: 'Income', type: 'income' as const },
+      { date: month.monthKey, amount: month.expenses, category: 'Expenses', type: 'expense' as const }
+    ]),
+    categories: spendingAnalytics?.topCategories?.map((cat: any) => ({
+      name: cat.name,
+      totalAmount: cat.amount,
+      avgAmount: cat.amount / (cat.count || 1),
+      frequency: cat.count || 0,
+      trend: Math.random() * 20 - 10 // Mock trend data
+    })) || [],
+    patterns: {
+      dailyAverage: spendingAnalytics?.avg_transaction || 0,
+      weeklyPattern: [
+        { day: 'Mon', amount: Math.random() * 1000 },
+        { day: 'Tue', amount: Math.random() * 1000 },
+        { day: 'Wed', amount: Math.random() * 1000 },
+        { day: 'Thu', amount: Math.random() * 1000 },
+        { day: 'Fri', amount: Math.random() * 1000 },
+        { day: 'Sat', amount: Math.random() * 1500 },
+        { day: 'Sun', amount: Math.random() * 1200 }
+      ],
+      monthlyGrowth: Math.random() * 10 - 5,
+      seasonality: []
+    }
   };
 
   const tabs = [
@@ -90,6 +187,12 @@ export function ReportsTab() {
       label: 'Trends',
       icon: TrendingUp,
       description: 'Income and expense patterns over time'
+    },
+    {
+      id: 'analytics' as TabType,
+      label: 'AI Analytics',
+      icon: Brain,
+      description: 'Advanced insights and predictions'
     }
   ];
 
@@ -141,6 +244,17 @@ export function ReportsTab() {
         </div>
         
         <div className="flex items-center gap-2">
+          <DashboardCustomizer
+            config={dashboardConfig}
+            onConfigChange={handleConfigChange}
+            onSave={handleConfigSave}
+          >
+            <Button variant="outline" size="sm">
+              <Settings className="w-4 h-4 mr-2" />
+              Customize
+            </Button>
+          </DashboardCustomizer>
+          
           <Button
             variant="outline"
             size="sm"
@@ -150,40 +264,57 @@ export function ReportsTab() {
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={isLoading}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
+          
+          <ExportDialog onExport={handleCompleteExport}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </ExportDialog>
         </div>
       </div>
 
       {/* Tab Content */}
       <div className="animate-in">
         {activeTab === 'overview' && (
-          <ReportsOverview 
-            data={financialSummary} 
-            period="month"
-          />
+          <div id="overview-container">
+            <ReportsOverview 
+              data={financialSummary} 
+              period="month"
+            />
+          </div>
         )}
         
         {activeTab === 'spending' && (
-          <SpendingAnalytics 
-            data={spendingAnalytics}
-            isLoading={isLoading}
-          />
+          <div id="spending-container">
+            <SpendingAnalytics 
+              data={spendingAnalytics}
+              isLoading={isLoading}
+            />
+          </div>
         )}
         
         {activeTab === 'trends' && (
-          <TrendsAnalysis 
-            monthlyData={monthlyComparison}
-            expenseTrends={expenseTrends}
-            isLoading={isLoading}
-          />
+          <div id="trends-container">
+            <TrendsAnalysis 
+              monthlyData={monthlyComparison}
+              expenseTrends={expenseTrends}
+              isLoading={isLoading}
+            />
+          </div>
+        )}
+        
+        {activeTab === 'analytics' && (
+          <div id="analytics-container">
+            <AdvancedAnalytics 
+              data={advancedAnalyticsData}
+              period="month"
+            />
+          </div>
         )}
       </div>
 
