@@ -1,0 +1,363 @@
+'use client'
+
+import * as React from 'react'
+import { usePathname } from 'next/navigation'
+import {
+  Search,
+  Bell,
+  Settings,
+  User,
+  LogOut,
+  Moon,
+  Sun,
+  ChevronDown,
+  Menu,
+  X
+} from 'lucide-react'
+
+import { cn } from '@/lib/utils'
+import { useNavigationStore } from '@/lib/stores/navigation-store'
+import { useAuth } from '@/lib/auth-context'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+
+interface HeaderProps {
+  className?: string
+}
+
+interface UserProfileProps {
+  user?: {
+    name?: string
+    email?: string
+    avatar?: string
+    initials?: string
+  }
+}
+
+const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
+  const { user: authUser, signOut } = useAuth()
+  
+  const defaultUser = {
+    name: 'User',
+    email: authUser?.email || 'user@example.com',
+    initials: authUser?.email ? authUser.email.substring(0, 2).toUpperCase() : 'U',
+    avatar: undefined
+  }
+
+  const currentUser = user || defaultUser
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="relative h-10 w-10 rounded-full hover:bg-accent/50"
+        >
+          <Avatar className="h-9 w-9">
+            {currentUser.avatar ? (
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.name}
+                className="h-full w-full rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600 text-white text-sm font-medium">
+                {currentUser.initials}
+              </div>
+            )}
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">
+              {currentUser.name}
+            </p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {currentUser.email}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        
+        <DropdownMenuSeparator />
+        
+        <DropdownMenuItem className="cursor-pointer">
+          <User className="mr-2 h-4 w-4" />
+          Profile Settings
+        </DropdownMenuItem>
+        
+        <DropdownMenuItem className="cursor-pointer">
+          <Settings className="mr-2 h-4 w-4" />
+          Account Settings
+        </DropdownMenuItem>
+        
+        <DropdownMenuSeparator />
+        
+        <DropdownMenuItem 
+          className="cursor-pointer text-destructive focus:text-destructive"
+          onClick={() => signOut()}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const NotificationButton: React.FC = () => {
+  const [hasNotifications] = React.useState(true) // Mock notification state
+  const [notificationCount] = React.useState(3) // Mock count
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative hover:bg-accent/50"
+        >
+          <Bell className="h-5 w-5" />
+          {hasNotifications && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
+            >
+              {notificationCount > 9 ? '9+' : notificationCount}
+            </Badge>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel>
+          <div className="flex items-center justify-between">
+            <span>Notifications</span>
+            <Badge variant="secondary" className="h-5 px-2">
+              {notificationCount}
+            </Badge>
+          </div>
+        </DropdownMenuLabel>
+        
+        <DropdownMenuSeparator />
+        
+        {/* Mock notifications */}
+        <DropdownMenuItem className="cursor-pointer p-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium">Budget Alert</p>
+            <p className="text-xs text-muted-foreground">
+              You&apos;ve spent 80% of your monthly grocery budget
+            </p>
+            <p className="text-xs text-muted-foreground">2 hours ago</p>
+          </div>
+        </DropdownMenuItem>
+        
+        <DropdownMenuItem className="cursor-pointer p-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium">Goal Milestone</p>
+            <p className="text-xs text-muted-foreground">
+              You&apos;re halfway to your vacation savings goal!
+            </p>
+            <p className="text-xs text-muted-foreground">1 day ago</p>
+          </div>
+        </DropdownMenuItem>
+        
+        <DropdownMenuItem className="cursor-pointer p-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium">Achievement Unlocked</p>
+            <p className="text-xs text-muted-foreground">
+              You&apos;ve logged transactions for 30 days straight!
+            </p>
+            <p className="text-xs text-muted-foreground">3 days ago</p>
+          </div>
+        </DropdownMenuItem>
+        
+        <DropdownMenuSeparator />
+        
+        <DropdownMenuItem className="cursor-pointer text-center text-primary">
+          View all notifications
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const ThemeToggle: React.FC = () => {
+  const [theme, setTheme] = React.useState<'light' | 'dark' | 'system'>('system')
+
+  const toggleTheme = () => {
+    // TODO: Implement theme switching with next-themes
+    const newTheme = theme === 'light' ? 'dark' : 'light'
+    setTheme(newTheme)
+    console.log('Theme switched to:', newTheme)
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleTheme}
+      className="hover:bg-accent/50"
+    >
+      <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  )
+}
+
+const SearchBar: React.FC = () => {
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [isFocused, setIsFocused] = React.useState(false)
+
+  return (
+    <div className="relative flex-1 max-w-md">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        placeholder="Search transactions, categories..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        className={cn(
+          'pl-9 pr-4 transition-all duration-200',
+          isFocused && 'ring-2 ring-primary/20'
+        )}
+      />
+      
+      {/* Search results dropdown would go here */}
+      {searchQuery && isFocused && (
+        <div className="absolute top-full mt-1 w-full rounded-lg bg-popover border shadow-lg z-50 p-2">
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Search functionality coming soon...
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const MobileMenuButton: React.FC = () => {
+  const { mobileMenuOpen, toggleMobileMenu, isMobile } = useNavigationStore()
+
+  if (!isMobile) {
+    return null
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleMobileMenu}
+      className="hover:bg-accent/50 lg:hidden"
+    >
+      {mobileMenuOpen ? (
+        <X className="h-5 w-5" />
+      ) : (
+        <Menu className="h-5 w-5" />
+      )}
+    </Button>
+  )
+}
+
+const Breadcrumbs: React.FC = () => {
+  const { breadcrumbs, pageTitle } = useNavigationStore()
+  
+  if (!breadcrumbs.length && !pageTitle) {
+    return null
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {breadcrumbs.length > 0 && (
+        <nav className="flex items-center space-x-1 text-sm text-muted-foreground">
+          {breadcrumbs.map((crumb, index) => (
+            <React.Fragment key={index}>
+              {index > 0 && <span>/</span>}
+              {crumb.href ? (
+                <a
+                  href={crumb.href}
+                  className="hover:text-foreground transition-colors"
+                >
+                  {crumb.label}
+                </a>
+              ) : (
+                <span>{crumb.label}</span>
+              )}
+            </React.Fragment>
+          ))}
+        </nav>
+      )}
+      
+      {pageTitle && (
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {pageTitle}
+        </h1>
+      )}
+    </div>
+  )
+}
+
+export const Header: React.FC<HeaderProps> = ({ className }) => {
+  const { sidebarOpen, sidebarCollapsed, isMobile } = useNavigationStore()
+
+  // Calculate left margin based on sidebar state
+  const getMarginLeft = () => {
+    if (isMobile) return '0px'
+    if (!sidebarOpen) return '0px'
+    return sidebarCollapsed ? '64px' : '256px'
+  }
+
+  return (
+    <header
+      className={cn(
+        'sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6 transition-all duration-300',
+        className
+      )}
+      style={{
+        marginLeft: getMarginLeft(),
+      }}
+    >
+      {/* Left section */}
+      <div className="flex items-center gap-4">
+        <MobileMenuButton />
+        <Breadcrumbs />
+      </div>
+
+      {/* Center section - Search */}
+      <div className="hidden md:flex flex-1 justify-center px-6">
+        <SearchBar />
+      </div>
+
+      {/* Right section */}
+      <div className="flex items-center gap-2">
+        {/* Mobile search button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden hover:bg-accent/50"
+        >
+          <Search className="h-5 w-5" />
+        </Button>
+
+        <ThemeToggle />
+        <NotificationButton />
+        <UserProfile />
+      </div>
+    </header>
+  )
+}
+
+export default Header
