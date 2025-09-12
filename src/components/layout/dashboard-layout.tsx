@@ -35,8 +35,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <div className="min-h-screen gradient-background">
-      {/* Enhanced ambient lighting effect */}
-      <div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none" />
+      {/* Luxury ambient lighting system */}
+      <div className="fixed inset-0 bg-gradient-to-br from-primary/6 via-accent-violet/4 via-secondary/6 to-accent-cyan/4 pointer-events-none opacity-80" />
+      <div className="fixed inset-0 bg-gradient-to-tl from-accent-emerald/3 via-transparent via-accent-rose/3 to-accent-amber/3 pointer-events-none opacity-60" />
       
       {/* Sidebar */}
       <Sidebar />
@@ -55,15 +56,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           paddingTop: '48px', // Reduced to align content with sidebar tabs
         }}
       >
-        {/* Enhanced Page Content Container */}
-        <div className="container mx-auto px-4 lg:px-6 pt-0 pb-12 scrollbar-premium overflow-x-hidden">
-          {/* Content Background Enhancement */}
+        {/* Enhanced Luxury Page Content Container */}
+        <div className="container mx-auto px-4 lg:px-8 pt-0 pb-16 scrollbar-luxury overflow-x-hidden">
+          {/* Luxury Content Background Enhancement */}
           <div className="relative">
-            {/* Ambient Background Elements */}
-            <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-full blur-3xl opacity-40 animate-float" />
-            <div className="absolute top-32 right-1/4 w-80 h-80 bg-gradient-to-tl from-secondary/5 to-primary/5 rounded-full blur-3xl opacity-30 animate-float" style={{ animationDelay: '2s' }} />
+            {/* Advanced Ambient Background Elements */}
+            <div className="absolute top-0 left-1/4 w-[32rem] h-[32rem] bg-gradient-to-br from-primary/4 via-secondary/3 to-accent-violet/4 rounded-full blur-3xl opacity-60 animate-float" />
+            <div className="absolute top-32 right-1/4 w-[28rem] h-[28rem] bg-gradient-to-tl from-secondary/4 via-accent-cyan/3 to-primary/4 rounded-full blur-3xl opacity-50 animate-float" style={{ animationDelay: '3s' }} />
+            <div className="absolute top-64 left-1/3 w-[24rem] h-[24rem] bg-gradient-to-r from-accent-emerald/3 via-accent-indigo/3 to-accent-rose/3 rounded-full blur-3xl opacity-40 animate-float" style={{ animationDelay: '5s' }} />
             
-            {/* Main Content */}
+            {/* Luxury Main Content */}
             <div className="relative animate-slide-up">
               {children}
             </div>
@@ -100,32 +102,33 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({
           {/* Background Accent */}
           <div className="absolute -inset-4 bg-gradient-to-r from-primary/5 via-secondary/5 to-transparent rounded-3xl opacity-60" />
           
-          {/* Main Header Content */}
-          <div className="relative glass-card border-0 bg-gradient-to-r from-background/95 via-background/90 to-background/95 backdrop-blur-xl p-6 rounded-2xl shadow-premium">
-            {/* Decorative Elements */}
-            <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full blur-2xl opacity-40" />
-            <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-secondary/15 to-primary/15 rounded-full blur-3xl opacity-30" />
+          {/* Luxury Main Header Content */}
+          <div className="relative luxury-card-premium border-0 bg-gradient-surface-elevated backdrop-blur-xl p-8 shadow-luxury">
+            {/* Advanced Decorative Elements */}
+            <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-primary/15 via-accent-violet/12 to-secondary/15 rounded-full blur-2xl opacity-50" />
+            <div className="absolute bottom-0 right-0 w-36 h-36 bg-gradient-to-tl from-secondary/12 via-accent-cyan/10 to-primary/12 rounded-full blur-3xl opacity-40" />
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-28 h-28 bg-gradient-to-r from-accent-emerald/8 to-accent-indigo/8 rounded-full blur-2xl opacity-30" />
             
-            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between animate-in">
-              <div className="space-y-3 flex-1">
+            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between animate-in">
+              <div className="space-y-4 flex-1">
                 {title && (
-                  <div className="space-y-2">
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/80 bg-clip-text text-transparent leading-tight tracking-tight">
+                  <div className="space-y-3">
+                    <h1 className="text-4xl font-extrabold text-gradient-luxury leading-tight tracking-tight">
                       {title}
                     </h1>
-                    {/* Accent Line */}
-                    <div className="h-1 w-16 bg-gradient-to-r from-primary to-secondary rounded-full" />
+                    {/* Enhanced Accent Line */}
+                    <div className="h-1.5 w-20 bg-gradient-primary rounded-full shadow-md animate-shimmer" />
                   </div>
                 )}
                 {description && (
-                  <p className="text-muted-foreground/80 max-w-2xl text-base leading-relaxed font-medium">
+                  <p className="text-body-luxury text-foreground-subtle max-w-2xl text-lg leading-relaxed">
                     {description}
                   </p>
                 )}
               </div>
               
               {actions && (
-                <div className="flex items-center gap-3 animate-scale-in shrink-0">
+                <div className="flex items-center gap-4 animate-scale-in shrink-0">
                   {actions}
                 </div>
               )}

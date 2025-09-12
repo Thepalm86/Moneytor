@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { AchievementProvider } from '@/components/achievements'
+import { ThemeProvider } from '@/lib/theme-provider'
 import { Toaster } from 'sonner'
 import './globals.css'
 
@@ -25,12 +26,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${inter.className}`}>
-        <AuthProvider>
-          <AchievementProvider>
-            {children}
-            <Toaster position="bottom-right" richColors closeButton />
-          </AchievementProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AchievementProvider>
+              {children}
+              <Toaster position="bottom-right" richColors closeButton />
+            </AchievementProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

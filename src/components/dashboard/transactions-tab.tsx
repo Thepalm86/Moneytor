@@ -26,9 +26,17 @@ interface TransactionFilters {
   sortOrder: 'asc' | 'desc';
 }
 
-export function TransactionsTab() {
+interface TransactionsTabProps {
+  showAddTransactionForm?: boolean;
+  onCloseForm?: () => void;
+}
+
+export function TransactionsTab({ 
+  showAddTransactionForm = false, 
+  onCloseForm 
+}: TransactionsTabProps = {}) {
   const { user } = useAuth();
-  const [showTransactionForm, setShowTransactionForm] = useState(false);
+  const [showTransactionForm, setShowTransactionForm] = useState(showAddTransactionForm);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
@@ -102,10 +110,15 @@ export function TransactionsTab() {
     loadTransactions();
   }, [user, filters]);
 
+  useEffect(() => {
+    setShowTransactionForm(showAddTransactionForm);
+  }, [showAddTransactionForm]);
+
   const handleTransactionSubmit = () => {
     setShowTransactionForm(false);
     setEditingTransaction(null);
     setError(null); // Clear any previous errors
+    onCloseForm?.(); // Close external form if provided
     loadTransactions();
   };
 
@@ -170,6 +183,12 @@ export function TransactionsTab() {
 
   const handleFiltersChange = (newFilters: TransactionFilters) => {
     setFilters(newFilters);
+  };
+
+  const handleCloseTransactionForm = () => {
+    setShowTransactionForm(false);
+    setEditingTransaction(null);
+    onCloseForm?.(); // Close external form if provided
   };
 
   // Group transactions by date
@@ -373,10 +392,7 @@ export function TransactionsTab() {
       {showTransactionForm && (
         <TransactionForm
           transaction={editingTransaction}
-          onClose={() => {
-            setShowTransactionForm(false);
-            setEditingTransaction(null);
-          }}
+          onClose={handleCloseTransactionForm}
           onSuccess={handleTransactionSubmit}
         />
       )}

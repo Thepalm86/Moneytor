@@ -25,6 +25,467 @@ type SavingGoalRow = Tables['saving_goals']['Row']
 type SavingGoalInsert = Tables['saving_goals']['Insert']
 type SavingGoalUpdate = Tables['saving_goals']['Update']
 
+// Enhanced Dashboard Operations
+export const dashboardOperations = {
+  /**
+   * Calculate comprehensive financial health score (0-100)
+   */
+  async calculateFinancialHealthScore(userId: string) {
+    try {
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+
+      // Fetch current month transactions
+      const { data: currentTransactions } = await typedSupabase
+        .from('transactions')
+        .select('amount, type')
+        .eq('user_id', userId)
+        .gte('date', startOfMonth.toISOString().split('T')[0])
+
+      // Fetch budget targets
+      const { data: targets } = await typedSupabase
+        .from('targets')
+        .select('target_amount')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+
+      // Fetch saving goals
+      const { data: goals } = await typedSupabase
+        .from('saving_goals')
+        .select('target_amount, current_amount, is_achieved')
+        .eq('user_id', userId)
+
+      const currentIncome = currentTransactions?.filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + Number(t.amount), 0) || 0
+      const currentExpenses = currentTransactions?.filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0
+
+      // Health Score Calculation (0-100)
+      let score = 0
+      let primaryFactor = 'Start adding transactions'
+      const insights = []
+
+      // 1. Income vs Expenses (40 points)
+      if (currentIncome > 0) {
+        const ratio = Math.max(0, (currentIncome - currentExpenses) / currentIncome)
+        score += Math.min(40, ratio * 40)
+        if (ratio > 0.2) {
+          insights.push(`Great income management! You're saving ${Math.round(ratio * 100)}% of your income`)
+          primaryFactor = 'Excellent spending discipline'
+        } else if (ratio > 0) {
+          insights.push('You have positive cash flow, but there\'s room to save more')
+          primaryFactor = 'Positive but could improve'
+        } else {
+          insights.push('Expenses exceed income - review your spending')
+          primaryFactor = 'Expenses too high'
+        }
+      }
+
+      // 2. Budget Adherence (25 points)
+      if (targets && targets.length > 0) {
+        const totalBudget = targets.reduce((sum, t) => sum + Number(t.target_amount), 0)
+        const adherenceRatio = totalBudget > 0 ? Math.max(0, 1 - (currentExpenses / totalBudget)) : 0
+        score += Math.min(25, adherenceRatio * 25)
+        
+        if (adherenceRatio > 0.15) {
+          insights.push('Staying within budget targets')
+        } else {
+          insights.push('Budget targets need attention')
+        }
+      }
+
+      // 3. Savings Goals Progress (20 points)
+      if (goals && goals.length > 0) {
+        const activeGoals = goals.filter(g => !g.is_achieved)
+        const completedGoals = goals.filter(g => g.is_achieved)
+        const avgProgress = activeGoals.length > 0 
+          ? activeGoals.reduce((sum, g) => sum + (Number(g.current_amount) / Number(g.target_amount)), 0) / activeGoals.length
+          : 0
+        
+        score += Math.min(20, (avgProgress + (completedGoals.length * 0.1)) * 20)
+        
+        if (completedGoals.length > 0) {
+          insights.push(`${completedGoals.length} saving goals achieved!`)
+        }
+        if (activeGoals.length > 0) {
+          insights.push(`${activeGoals.length} savings goals in progress`)
+        }
+      }
+
+      // 4. Financial Activity (15 points)
+      if (currentTransactions && currentTransactions.length > 0) {
+        const activityScore = Math.min(15, (currentTransactions.length / 10) * 15)
+        score += activityScore
+        
+        if (currentTransactions.length >= 10) {
+          insights.push('Good transaction tracking habits')
+        }
+      }
+
+      // Determine status and trend
+      let status: 'excellent' | 'good' | 'fair' | 'needs-attention'
+      if (score >= 80) status = 'excellent'
+      else if (score >= 65) status = 'good'
+      else if (score >= 45) status = 'fair'
+      else status = 'needs-attention'
+
+      return {
+        score: Math.round(score),
+        status,
+        primaryFactor,
+        trend: 'stable' as 'improving' | 'stable' | 'declining',
+        insights: insights.slice(0, 3)
+      }
+    } catch (error) {
+      console.error('Error calculating health score:', error)
+      return {
+        score: 0,
+        status: 'needs-attention' as const,
+        primaryFactor: 'Unable to calculate',
+        trend: 'stable' as const,
+        insights: ['Add transactions to see your health score']
+      }
+    }
+  },
+
+  /**
+   * Get smart action recommendations based on user context
+   */
+  async getSmartActionRecommendations(userId: string) {
+    try {
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const dayOfMonth = now.getDate()
+      
+      // Fetch recent data for context
+      const [
+        { data: recentTransactions },
+        { data: targets },
+        { data: goals },
+        { data: categories }
+      ] = await Promise.all([
+        typedSupabase.from('transactions').select('*').eq('user_id', userId).gte('date', startOfMonth.toISOString().split('T')[0]).order('date', { ascending: false }).limit(5),
+        typedSupabase.from('targets').select('*').eq('user_id', userId).eq('is_active', true),
+        typedSupabase.from('saving_goals').select('*').eq('user_id', userId).eq('is_achieved', false),
+        typedSupabase.from('categories').select('id, name, type').eq('user_id', userId)
+      ])
+
+      const actions = []
+
+      // Contextual recommendations based on patterns
+      if (!recentTransactions || recentTransactions.length === 0) {
+        actions.push({
+          id: 'add-first-transaction',
+          title: 'Add Your First Transaction',
+          description: 'Start tracking your finances',
+          href: '/dashboard/transactions?action=add',
+          icon: 'Plus',
+          priority: 'high',
+          color: { bg: 'bg-primary/10', icon: 'text-primary', hover: 'bg-primary/5' }
+        })
+      } else if (recentTransactions.length < 3 && dayOfMonth < 5) {
+        actions.push({
+          id: 'add-transaction',
+          title: 'Log Recent Expenses',
+          description: 'Catch up on your spending',
+          href: '/dashboard/transactions?action=add',
+          icon: 'Receipt',
+          priority: 'high',
+          color: { bg: 'bg-secondary/10', icon: 'text-secondary', hover: 'bg-secondary/5' }
+        })
+      }
+
+      // Budget-related actions
+      if (!targets || targets.length === 0) {
+        actions.push({
+          id: 'create-budget',
+          title: 'Create Your First Budget',
+          description: 'Set spending limits for better control',
+          href: '/dashboard/targets?action=add',
+          icon: 'Target',
+          priority: 'medium',
+          color: { bg: 'bg-warning/10', icon: 'text-warning', hover: 'bg-warning/5' }
+        })
+      }
+
+      // Goals-related actions
+      if (!goals || goals.length === 0) {
+        actions.push({
+          id: 'create-goal',
+          title: 'Set a Savings Goal',
+          description: 'Start building your financial future',
+          href: '/dashboard/goals?action=add',
+          icon: 'PiggyBank',
+          priority: 'medium',
+          color: { bg: 'bg-success/10', icon: 'text-success', hover: 'bg-success/5' }
+        })
+      }
+
+      // Categories setup
+      if (!categories || categories.length < 3) {
+        actions.push({
+          id: 'setup-categories',
+          title: 'Organize Categories',
+          description: 'Better organize your transactions',
+          href: '/dashboard/categories',
+          icon: 'Folder',
+          priority: 'low',
+          color: { bg: 'bg-info/10', icon: 'text-info', hover: 'bg-info/5' }
+        })
+      }
+
+      // Always include reports for users with data
+      if (recentTransactions && recentTransactions.length > 5) {
+        actions.push({
+          id: 'view-reports',
+          title: 'Analyze Spending',
+          description: 'Review your financial patterns',
+          href: '/dashboard/reports',
+          icon: 'BarChart3',
+          priority: 'low',
+          color: { bg: 'bg-primary/10', icon: 'text-primary', hover: 'bg-primary/5' }
+        })
+      }
+
+      // Sort by priority and return top 4
+      const priorityOrder = { high: 3, medium: 2, low: 1 }
+      return actions
+        .sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+        .slice(0, 4)
+
+    } catch (error) {
+      console.error('Error getting smart actions:', error)
+      return []
+    }
+  },
+
+  /**
+   * Get unified progress data (budgets + goals combined)
+   */
+  async getUnifiedProgressData(userId: string) {
+    try {
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      
+      // Fetch budget targets with spending
+      const { data: targets } = await typedSupabase
+        .from('targets')
+        .select(`
+          *,
+          categories:category_id(name, color)
+        `)
+        .eq('user_id', userId)
+        .eq('is_active', true)
+
+      // Fetch current month expenses for budget calculation
+      const { data: expenses } = await typedSupabase
+        .from('transactions')
+        .select('amount, category_id')
+        .eq('user_id', userId)
+        .eq('type', 'expense')
+        .gte('date', startOfMonth.toISOString().split('T')[0])
+
+      // Fetch saving goals
+      const { data: goals } = await typedSupabase
+        .from('saving_goals')
+        .select('*')
+        .eq('user_id', userId)
+        .order('is_achieved', { ascending: true })
+        .order('target_date', { ascending: true })
+
+      const alerts = []
+      const progressItems = []
+
+      // Process budget targets
+      if (targets) {
+        for (const target of targets) {
+          const targetExpenses = expenses?.filter(e => 
+            target.category_id ? e.category_id === target.category_id : true
+          ) || []
+          
+          const spent = targetExpenses.reduce((sum, e) => sum + Math.abs(Number(e.amount)), 0)
+          const percentage = (spent / Number(target.target_amount)) * 100
+          
+          let status: 'success' | 'warning' | 'danger' = 'success'
+          if (percentage >= 100) status = 'danger'
+          else if (percentage >= 85) status = 'warning'
+
+          const item = {
+            id: target.id,
+            type: 'budget' as const,
+            title: target.name,
+            subtitle: target.categories?.name || 'All categories',
+            current: spent,
+            target: Number(target.target_amount),
+            percentage: Math.min(percentage, 100),
+            status,
+            color: target.categories?.color || '#8b5cf6',
+            daysLeft: Math.ceil((new Date(target.period_end).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          }
+
+          progressItems.push(item)
+
+          // Add to alerts if over budget or warning
+          if (status !== 'success') {
+            alerts.push({
+              type: 'budget',
+              severity: status === 'danger' ? 'high' : 'medium',
+              title: `Budget Alert: ${target.name}`,
+              message: status === 'danger' 
+                ? `Over budget by ₪${(spent - Number(target.target_amount)).toLocaleString()}`
+                : `${Math.round(percentage)}% of budget used`,
+              action: 'Review spending',
+              href: '/dashboard/targets'
+            })
+          }
+        }
+      }
+
+      // Process saving goals
+      if (goals) {
+        for (const goal of goals) {
+          const percentage = (Number(goal.current_amount) / Number(goal.target_amount)) * 100
+          
+          let status: 'success' | 'warning' | 'danger' = 'success'
+          if (goal.target_date) {
+            const daysLeft = Math.ceil((new Date(goal.target_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            if (daysLeft < 30 && percentage < 80) status = 'warning'
+            if (daysLeft < 0 && !goal.is_achieved) status = 'danger'
+          }
+
+          progressItems.push({
+            id: goal.id,
+            type: 'goal' as const,
+            title: goal.name,
+            subtitle: goal.description || '',
+            current: Number(goal.current_amount),
+            target: Number(goal.target_amount),
+            percentage: Math.min(percentage, 100),
+            status: goal.is_achieved ? 'success' : status,
+            color: goal.color,
+            daysLeft: goal.target_date 
+              ? Math.ceil((new Date(goal.target_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+              : null
+          })
+        }
+      }
+
+      // Sort: alerts first, then by percentage completion
+      progressItems.sort((a, b) => {
+        if (a.status !== 'success' && b.status === 'success') return -1
+        if (a.status === 'success' && b.status !== 'success') return 1
+        return b.percentage - a.percentage
+      })
+
+      return {
+        alerts: alerts.sort((a, b) => a.severity === 'high' ? -1 : 1),
+        progressItems: progressItems.slice(0, 8), // Limit to 8 items for UI
+        summary: {
+          totalBudgets: targets?.length || 0,
+          budgetsOnTrack: targets?.filter(t => {
+            const spent = expenses?.filter(e => 
+              t.category_id ? e.category_id === t.category_id : true
+            )?.reduce((sum, e) => sum + Math.abs(Number(e.amount)), 0) || 0
+            return (spent / Number(t.target_amount)) < 0.85
+          }).length || 0,
+          totalGoals: goals?.length || 0,
+          achievedGoals: goals?.filter(g => g.is_achieved).length || 0
+        }
+      }
+    } catch (error) {
+      console.error('Error getting unified progress data:', error)
+      return {
+        alerts: [],
+        progressItems: [],
+        summary: { totalBudgets: 0, budgetsOnTrack: 0, totalGoals: 0, achievedGoals: 0 }
+      }
+    }
+  },
+
+  /**
+   * Get financial insights and recommendations
+   */
+  async getFinancialInsights(userId: string) {
+    try {
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+
+      // Fetch transaction data
+      const [
+        { data: currentTransactions },
+        { data: lastMonthTransactions },
+        { data: categories }
+      ] = await Promise.all([
+        typedSupabase.from('transactions').select('*').eq('user_id', userId).gte('date', startOfMonth.toISOString().split('T')[0]),
+        typedSupabase.from('transactions').select('*').eq('user_id', userId).gte('date', startOfLastMonth.toISOString().split('T')[0]).lte('date', endOfLastMonth.toISOString().split('T')[0]),
+        typedSupabase.from('categories').select('*').eq('user_id', userId)
+      ])
+
+      const insights = []
+
+      // Spending pattern analysis
+      if (currentTransactions && lastMonthTransactions) {
+        const currentSpending = currentTransactions.filter(t => t.type === 'expense')
+          .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0)
+        const lastMonthSpending = lastMonthTransactions.filter(t => t.type === 'expense')
+          .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0)
+
+        if (currentSpending > lastMonthSpending * 1.2) {
+          insights.push({
+            type: 'warning',
+            title: 'Spending Increase Detected',
+            message: `Your spending is ${Math.round(((currentSpending - lastMonthSpending) / lastMonthSpending) * 100)}% higher than last month`,
+            action: 'Review transactions',
+            icon: 'TrendingUp'
+          })
+        } else if (currentSpending < lastMonthSpending * 0.8) {
+          insights.push({
+            type: 'success',
+            title: 'Great Spending Control',
+            message: `You've reduced spending by ${Math.round(((lastMonthSpending - currentSpending) / lastMonthSpending) * 100)}% vs last month`,
+            action: 'Keep it up!',
+            icon: 'TrendingDown'
+          })
+        }
+      }
+
+      // Category spending patterns
+      if (currentTransactions && categories) {
+        const categorySpending = currentTransactions
+          .filter(t => t.type === 'expense')
+          .reduce((acc, t) => {
+            const categoryId = t.category_id || 'uncategorized'
+            acc[categoryId] = (acc[categoryId] || 0) + Math.abs(Number(t.amount))
+            return acc
+          }, {} as Record<string, number>)
+
+        const topCategory = Object.entries(categorySpending)
+          .sort(([,a], [,b]) => b - a)[0]
+
+        if (topCategory) {
+          const category = categories.find(c => c.id === topCategory[0])
+          insights.push({
+            type: 'info',
+            title: 'Top Spending Category',
+            message: `${category?.name || 'Uncategorized'}: ₪${topCategory[1].toLocaleString()}`,
+            action: 'Analyze category',
+            icon: 'PieChart'
+          })
+        }
+      }
+
+      return insights.slice(0, 3)
+    } catch (error) {
+      console.error('Error getting financial insights:', error)
+      return []
+    }
+  }
+}
+
 // Category Operations
 export const categoryOperations = {
   /**

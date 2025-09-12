@@ -10,9 +10,17 @@ import { TargetStats } from '@/components/targets/target-stats';
 import { TargetList } from '@/components/targets/target-list';
 import { Plus } from 'lucide-react';
 
-export function TargetsTab() {
+interface TargetsTabProps {
+  showAddTargetForm?: boolean;
+  onCloseForm?: () => void;
+}
+
+export function TargetsTab({ 
+  showAddTargetForm = false, 
+  onCloseForm 
+}: TargetsTabProps = {}) {
   const { user } = useAuth();
-  const [showTargetForm, setShowTargetForm] = useState(false);
+  const [showTargetForm, setShowTargetForm] = useState(showAddTargetForm);
   const [editingTarget, setEditingTarget] = useState(null);
   const [targets, setTargets] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -46,11 +54,22 @@ export function TargetsTab() {
     loadTargets();
   }, [user]);
 
+  useEffect(() => {
+    setShowTargetForm(showAddTargetForm);
+  }, [showAddTargetForm]);
+
   const handleTargetSubmit = () => {
     setShowTargetForm(false);
     setEditingTarget(null);
     setError(null); // Clear any previous errors
+    onCloseForm?.(); // Close external form if provided
     loadTargets();
+  };
+
+  const handleCloseTargetForm = () => {
+    setShowTargetForm(false);
+    setEditingTarget(null);
+    onCloseForm?.(); // Close external form if provided
   };
 
   const handleEditTarget = (target: any) => {
@@ -178,10 +197,7 @@ export function TargetsTab() {
       {showTargetForm && (
         <TargetForm
           target={editingTarget}
-          onClose={() => {
-            setShowTargetForm(false);
-            setEditingTarget(null);
-          }}
+          onClose={handleCloseTargetForm}
           onSuccess={handleTargetSubmit}
         />
       )}
